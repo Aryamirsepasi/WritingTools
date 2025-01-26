@@ -2,6 +2,7 @@ import SwiftUI
 import KeyboardShortcuts
 import Carbon.HIToolbox
 
+@MainActor
 class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     
     // Static status item to prevent deallocation
@@ -50,7 +51,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 self?.recreateStatusBarItem()
             }
             
-            if !UserDefaults.standard.bool(forKey: "has_completed_onboarding") {
+            if UserDefaults.standard.bool(forKey: "has_completed_onboarding") {
                 self?.showOnboarding()
             }
             
@@ -217,7 +218,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
     
     // Shows the main popup window when shortcut is triggered
-    private func showPopup() {
+     private func showPopup() {
         appState.activeProvider.cancel()
         
         DispatchQueue.main.async { [weak self] in

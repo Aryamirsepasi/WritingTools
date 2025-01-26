@@ -7,7 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		2A821C232D42D7F300950D70 /* MLX in Frameworks */ = {isa = PBXBuildFile; productRef = 2A821C222D42D7F300950D70 /* MLX */; };
 		2AA154122CF2636900D27D18 /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = 2AA154112CF2636900D27D18 /* MarkdownUI */; };
+		2AAC0F8A2D44F55800CC96CE /* MLXLLM in Frameworks */ = {isa = PBXBuildFile; productRef = 2AAC0F892D44F55800CC96CE /* MLXLLM */; };
+		2AAC0F8C2D44F55800CC96CE /* MLXLMCommon in Frameworks */ = {isa = PBXBuildFile; productRef = 2AAC0F8B2D44F55800CC96CE /* MLXLMCommon */; };
+		2AAC0F8E2D44F55800CC96CE /* MLXMNIST in Frameworks */ = {isa = PBXBuildFile; productRef = 2AAC0F8D2D44F55800CC96CE /* MLXMNIST */; };
+		2AAC0F902D44F55800CC96CE /* MLXVLM in Frameworks */ = {isa = PBXBuildFile; productRef = 2AAC0F8F2D44F55800CC96CE /* MLXVLM */; };
 		2AF5CC562D2AFE1C0050F923 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 2AF5CC552D2AFE1C0050F923 /* KeyboardShortcuts */; };
 /* End PBXBuildFile section */
 
@@ -60,7 +65,12 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2AAC0F902D44F55800CC96CE /* MLXVLM in Frameworks */,
+				2AAC0F8E2D44F55800CC96CE /* MLXMNIST in Frameworks */,
+				2AAC0F8A2D44F55800CC96CE /* MLXLLM in Frameworks */,
+				2A821C232D42D7F300950D70 /* MLX in Frameworks */,
 				2AA154122CF2636900D27D18 /* MarkdownUI in Frameworks */,
+				2AAC0F8C2D44F55800CC96CE /* MLXLMCommon in Frameworks */,
 				2AF5CC562D2AFE1C0050F923 /* KeyboardShortcuts in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -122,6 +132,11 @@
 			packageProductDependencies = (
 				2AA154112CF2636900D27D18 /* MarkdownUI */,
 				2AF5CC552D2AFE1C0050F923 /* KeyboardShortcuts */,
+				2A821C222D42D7F300950D70 /* MLX */,
+				2AAC0F892D44F55800CC96CE /* MLXLLM */,
+				2AAC0F8B2D44F55800CC96CE /* MLXLMCommon */,
+				2AAC0F8D2D44F55800CC96CE /* MLXMNIST */,
+				2AAC0F8F2D44F55800CC96CE /* MLXVLM */,
 			);
 			productName = "swift-writing-tools";
 			productReference = 2ABCBC1E2CDEB606001E4B5E /* writing-tools.app */;
@@ -202,6 +217,9 @@
 			packageReferences = (
 				2AA154102CF2636900D27D18 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */,
 				2AF5CC542D2AFE1C0050F923 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
+				2A821C212D42D7F300950D70 /* XCRemoteSwiftPackageReference "mlx-swift" */,
+				2AAC0F7B2D44EE7300CC96CE /* XCRemoteSwiftPackageReference "swift-transformers" */,
+				2AAC0F882D44F55800CC96CE /* XCRemoteSwiftPackageReference "mlx-swift-examples" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 2ABCBC1F2CDEB606001E4B5E /* Products */;
@@ -423,7 +441,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 2.0;
+				MARKETING_VERSION = 3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.aryamirsepasi.writing-tools";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -458,7 +476,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 2.0;
+				MARKETING_VERSION = 3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.aryamirsepasi.writing-tools";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -581,12 +599,36 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		2A821C212D42D7F300950D70 /* XCRemoteSwiftPackageReference "mlx-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ml-explore/mlx-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.21.2;
+			};
+		};
 		2AA154102CF2636900D27D18 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/gonzalezreal/swift-markdown-ui";
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 2.4.1;
+			};
+		};
+		2AAC0F7B2D44EE7300CC96CE /* XCRemoteSwiftPackageReference "swift-transformers" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/huggingface/swift-transformers";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.1.15;
+			};
+		};
+		2AAC0F882D44F55800CC96CE /* XCRemoteSwiftPackageReference "mlx-swift-examples" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ml-explore/mlx-swift-examples/";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.21.2;
 			};
 		};
 		2AF5CC542D2AFE1C0050F923 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */ = {
@@ -600,10 +642,35 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		2A821C222D42D7F300950D70 /* MLX */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2A821C212D42D7F300950D70 /* XCRemoteSwiftPackageReference "mlx-swift" */;
+			productName = MLX;
+		};
 		2AA154112CF2636900D27D18 /* MarkdownUI */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 2AA154102CF2636900D27D18 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */;
 			productName = MarkdownUI;
+		};
+		2AAC0F892D44F55800CC96CE /* MLXLLM */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2AAC0F882D44F55800CC96CE /* XCRemoteSwiftPackageReference "mlx-swift-examples" */;
+			productName = MLXLLM;
+		};
+		2AAC0F8B2D44F55800CC96CE /* MLXLMCommon */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2AAC0F882D44F55800CC96CE /* XCRemoteSwiftPackageReference "mlx-swift-examples" */;
+			productName = MLXLMCommon;
+		};
+		2AAC0F8D2D44F55800CC96CE /* MLXMNIST */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2AAC0F882D44F55800CC96CE /* XCRemoteSwiftPackageReference "mlx-swift-examples" */;
+			productName = MLXMNIST;
+		};
+		2AAC0F8F2D44F55800CC96CE /* MLXVLM */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2AAC0F882D44F55800CC96CE /* XCRemoteSwiftPackageReference "mlx-swift-examples" */;
+			productName = MLXVLM;
 		};
 		2AF5CC552D2AFE1C0050F923 /* KeyboardShortcuts */ = {
 			isa = XCSwiftPackageProductDependency;

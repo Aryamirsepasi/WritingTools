@@ -20,7 +20,7 @@ enum GeminiModel: String, CaseIterable {
         }
     }
 }
-
+@MainActor
 class GeminiProvider: ObservableObject, AIProvider {
     @Published var isProcessing = false
     private var config: GeminiConfig

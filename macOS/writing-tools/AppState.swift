@@ -1,11 +1,13 @@
 import SwiftUI
 
+@MainActor
 class AppState: ObservableObject {
     static let shared = AppState()
     
     @Published var geminiProvider: GeminiProvider
     @Published var openAIProvider: OpenAIProvider
     @Published var mistralProvider: MistralProvider
+    @Published var localLLMProvider: LocalLLMProvider
     
     @Published var customInstruction: String = ""
     @Published var selectedText: String = ""
@@ -18,7 +20,9 @@ class AppState: ObservableObject {
     @Published private(set) var currentProvider: String
     
     var activeProvider: any AIProvider {
-        if currentProvider == "openai" {
+        if currentProvider == "local" {
+            return localLLMProvider
+        } else if currentProvider == "openai" {
             return openAIProvider
         } else if currentProvider == "gemini" {
             return geminiProvider
@@ -48,16 +52,19 @@ class AppState: ObservableObject {
         self.openAIProvider = OpenAIProvider(config: openAIConfig)
         
         // Initialize Mistral
-                let mistralConfig = MistralConfig(
-                    apiKey: asettings.mistralApiKey,
-                    baseURL: asettings.mistralBaseURL,
-                    model: asettings.mistralModel
-                )
-                self.mistralProvider = MistralProvider(config: mistralConfig)
+        let mistralConfig = MistralConfig(
+            apiKey: asettings.mistralApiKey,
+            baseURL: asettings.mistralBaseURL,
+            model: asettings.mistralModel
+        )
+        self.mistralProvider = MistralProvider(config: mistralConfig)
         
         if asettings.openAIApiKey.isEmpty && asettings.geminiApiKey.isEmpty && asettings.mistralApiKey.isEmpty {
             print("Warning: No API keys configured.")
         }
+        
+        // Initialize local LLM Provider
+        self.localLLMProvider = LocalLLMProvider()
     }
     
     // For Gemini changes
@@ -92,16 +99,16 @@ class AppState: ObservableObject {
     }
     
     func saveMistralConfig(apiKey: String, baseURL: String, model: String) {
-            let asettings = AppSettings.shared
-            asettings.mistralApiKey = apiKey
-            asettings.mistralBaseURL = baseURL
-            asettings.mistralModel = model
-            
-            let config = MistralConfig(
-                apiKey: apiKey,
-                baseURL: baseURL,
-                model: model
-            )
-            mistralProvider = MistralProvider(config: config)
-        }
+        let asettings = AppSettings.shared
+        asettings.mistralApiKey = apiKey
+        asettings.mistralBaseURL = baseURL
+        asettings.mistralModel = model
+        
+        let config = MistralConfig(
+            apiKey: apiKey,
+            baseURL: baseURL,
+            model: model
+        )
+        mistralProvider = MistralProvider(config: config)
+    }
 }
