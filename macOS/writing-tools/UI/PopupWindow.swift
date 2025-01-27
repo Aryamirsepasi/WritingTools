@@ -12,7 +12,7 @@ class PopupWindow: NSWindow {
         self.commandsManager = CustomCommandsManager()
         
         super.init(
-            contentRect: NSRect(x: 0, y: 0, width: 400, height: 100),
+            contentRect: NSRect(x: 0, y: 0, width: 320, height: 100),
             styleMask: [.borderless],
             backing: .buffered,
             defer: true
@@ -64,8 +64,8 @@ class PopupWindow: NSWindow {
     @objc private func updateWindowSize() {
         let baseHeight: CGFloat = 100 // Height for header and input field
         let buttonHeight: CGFloat = 55 // Height for each button row
-        let spacing: CGFloat = 16 // Vertical spacing between elements
-        let padding: CGFloat = 20 // Bottom padding
+        let spacing: CGFloat = 10 // Vertical spacing between elements
+        let padding: CGFloat = 0 // Bottom padding
         
         let numBuiltInOptions = WritingOption.allCases.count
         let numCustomOptions = commandsManager.commands.count
@@ -80,7 +80,7 @@ class PopupWindow: NSWindow {
         // Set size on main thread
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
-            self.setContentSize(NSSize(width: 400, height: contentHeight))
+            self.setContentSize(NSSize(width: 320, height: contentHeight))
             
             // Maintain window position relative to the mouse
             if let screen = self.screen {

@@ -51,7 +51,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 self?.recreateStatusBarItem()
             }
             
-            if UserDefaults.standard.bool(forKey: "has_completed_onboarding") {
+            if !UserDefaults.standard.bool(forKey: "has_completed_onboarding") {
                 self?.showOnboarding()
             }
             

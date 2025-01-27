@@ -4,12 +4,11 @@ import KeyboardShortcuts
 struct OnboardingView: View {
     @ObservedObject var appState: AppState
     @State private var currentStep = 0
-    @State private var shortcutText = "⌃ Space"
     @State private var useGradientTheme = true
     @State private var selectedTheme = UserDefaults.standard.string(forKey: "theme_style") ?? "gradient"
+    @State private var selectedProvider = UserDefaults.standard.string(forKey: "current_provider") ?? "gemini"
     
     // Provider settings
-    @State private var selectedProvider = UserDefaults.standard.string(forKey: "current_provider") ?? "gemini"
     @State private var geminiApiKey = UserDefaults.standard.string(forKey: "gemini_api_key") ?? ""
     @State private var selectedGeminiModel = GeminiModel(rawValue: UserDefaults.standard.string(forKey: "gemini_model") ?? "gemini-1.5-flash-latest") ?? .oneflash
     @State private var openAIApiKey = UserDefaults.standard.string(forKey: "openai_api_key") ?? ""
@@ -24,17 +23,27 @@ struct OnboardingView: View {
     private let steps = [
         OnboardingStep(
             title: "Welcome to WritingTools!",
-            description: "Let's get you set up with just a few quick steps.",
+            description: "Your AI-powered writing assistant",
             isPermissionStep: false
         ),
         OnboardingStep(
-            title: "Enable Accessibility Access",
-            description: "WritingTools needs accessibility access to detect text selection and enhance your writing experience.",
+            title: "Key Features",
+            description: "Discover what WritingTools can do for you",
+            isPermissionStep: false
+        ),
+        OnboardingStep(
+            title: "Enable Accessibility",
+            description: "WritingTools needs accessibility access to enhance your writing experience",
             isPermissionStep: true
         ),
         OnboardingStep(
-            title: "Customize Your Experience",
-            description: "Set up your preferred shortcut, theme, and AI provider.",
+            title: "Choose Your AI Provider",
+            description: "Select and configure your preferred AI model",
+            isPermissionStep: false
+        ),
+        OnboardingStep(
+            title: "Customize Experience",
+            description: "Set up your shortcuts and theme",
             isPermissionStep: false
         )
     ]
@@ -47,8 +56,12 @@ struct OnboardingView: View {
                     case 0:
                         welcomeStep
                     case 1:
-                        accessibilityStep
+                        featuresStep
                     case 2:
+                        accessibilityStep
+                    case 3:
+                        aiProviderStep
+                    case 4:
                         customizationStep
                     default:
                         EmptyView()
@@ -56,9 +69,136 @@ struct OnboardingView: View {
                 }
                 .padding(.horizontal)
                 .padding(.top, 20)
+                .frame(maxWidth: .infinity)
             }
             
-            // Bottom navigation area
+            // Navigation
+            navigationArea
+        }
+        .frame(width: 600, height: 550)
+    }
+    
+    private var welcomeStep: some View {
+            VStack(spacing: 20) {
+                Image(systemName: "sparkles")
+                    .resizable()
+                    .frame(width: 60, height: 60)
+                    .foregroundColor(.accentColor)
+                
+                Text(steps[0].title)
+                    .font(.largeTitle)
+                    .bold()
+                
+                Text("Transform your writing experience with AI-powered assistance")
+                    .font(.title2)
+                    .multilineTextAlignment(.center)
+                    .padding(.bottom)
+                
+                VStack(spacing: 16) {
+                    FeatureRow(icon: "wand.and.stars", title: "Smart Writing Enhancement", description: "Improve your writing with AI-powered suggestions")
+                    FeatureRow(icon: "keyboard", title: "System-wide Access", description: "Use anywhere with a simple keyboard shortcut")
+                    FeatureRow(icon: "gear", title: "Customizable", description: "Create custom commands for your specific needs")
+                    FeatureRow(icon: "lock.shield", title: "Privacy-Focused", description: "Your data stays on your device with local AI options")
+                }
+            }
+        }
+    
+    private var featuresStep: some View {
+            VStack(spacing: 24) {
+                Text("Writing Tools at Your Fingertips")
+                    .font(.title)
+                    .bold()
+                
+                VStack(spacing: 20) {
+                    FeatureSection(title: "Quick Actions", items: [
+                        "Proofread and correct grammar",
+                        "Rewrite for clarity and impact",
+                        "Adjust tone (professional/friendly)",
+                        "Summarize long text"
+                    ])
+                    
+                    FeatureSection(title: "Advanced Features", items: [
+                        "Create custom AI commands",
+                        "Extract key points",
+                        "Generate structured content",
+                        "Multi-language support"
+                    ])
+                    
+                    FeatureSection(title: "Workflow Integration", items: [
+                        "Works in any application",
+                        "Customizable keyboard shortcuts",
+                        "Response windows for longer content",
+                        "Copy and paste automation"
+                    ])
+                }
+            }
+        }
+    
+    private var accessibilityStep: some View {
+        VStack(spacing: 20) {
+            Text(steps[2].title)
+                .font(.title)
+                .bold()
+            
+            Text(steps[2].description)
+                .multilineTextAlignment(.center)
+            
+            VStack(alignment: .leading, spacing: 15) {
+                Text("Why we need accessibility access:")
+                    .font(.headline)
+                    .padding(.bottom, 5)
+                
+                AccessibilityReason(number: "1", text: "To detect text selection across applications")
+                AccessibilityReason(number: "2", text: "To provide instant writing suggestions")
+                AccessibilityReason(number: "3", text: "To automate text replacement")
+                AccessibilityReason(number: "4", text: "To support system-wide keyboard shortcuts")
+            }
+            .padding()
+            .background(RoundedRectangle(cornerRadius: 12).fill(Color(.controlBackgroundColor)))
+            
+            VStack(spacing: 12) {
+                Text("How to enable:")
+                    .font(.headline)
+                
+                Button("Open System Settings") {
+                    NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
+                }
+                .buttonStyle(.borderedProminent)
+            }
+            .padding(.top)
+        }
+    }
+    
+    private var aiProviderStep: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Text("Choose Your AI Provider")
+                .font(.title)
+                .bold()
+            
+            Text("Select your preferred AI service and configure its settings:")
+                .font(.headline)
+            
+            Picker("Provider", selection: $selectedProvider) {
+                Text("Gemini AI").tag("gemini")
+                Text("OpenAI / Local LLM").tag("openai")
+                Text("Mistral AI").tag("mistral")
+                Text("Local LLM (Phi-3.5)").tag("local")
+            }
+            .pickerStyle(.segmented)
+            
+            if selectedProvider == "local" {
+                LocalLLMSettingsView(evaluator: appState.localLLMProvider)
+            } else if selectedProvider == "gemini" {
+                providerSettingsGemini
+            } else if selectedProvider == "mistral" {
+                providerSettingsMistral
+            } else {
+                providerSettingsOpenAI
+            }
+        }
+    }
+    
+    private var navigationArea: some View {
             VStack(spacing: 16) {
                 // Progress indicators
                 HStack(spacing: 8) {
@@ -82,7 +222,7 @@ struct OnboardingView: View {
                     
                     Spacer()
                     
-                    Button(currentStep == steps.count - 1 ? "Finish" : "Next") {
+                    Button(currentStep == steps.count - 1 ? "Get Started" : "Next") {
                         if currentStep == steps.count - 1 {
                             saveSettingsAndFinish()
                         } else {
@@ -97,75 +237,21 @@ struct OnboardingView: View {
             .padding()
             .background(Color(.windowBackgroundColor))
         }
-        .frame(width: 600, height: 700)
-    }
-    
-    private var welcomeStep: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "sparkles")
-                .resizable()
-                .frame(width: 60, height: 60)
-                .foregroundColor(.accentColor)
-            
-            Text(steps[0].title)
-                .font(.largeTitle)
-                .bold()
-            
-            VStack(alignment: .center, spacing: 10) {
-                Text("• Improves your writing with AI")
-                Text("• Works in any application")
-                Text("• Helps you write with clarity and confidence")
-                Text("• Support Custom Commands for anything you want")
-            }
-            .font(.title3)
-        }
-    }
-    
-    private var accessibilityStep: some View {
-        VStack(spacing: 20) {
-            Text(steps[1].title)
-                .font(.title)
-                .bold()
-            
-            Text(steps[1].description)
-                .multilineTextAlignment(.center)
-            
-            VStack(alignment: .leading, spacing: 15) {
-                Text("How to enable accessibility access:")
-                    .font(.headline)
-                
-                Text("1. Click the button below to open System Settings")
-                Text("2. Click the '+' button in the accessibility section")
-                Text("3. Navigate to Applications and select writing-tools")
-                Text("4. Enable the checkbox next to writing-tools")
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            
-            Button("Open System Settings") {
-                NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
-            }
-            .buttonStyle(.borderedProminent)
-        }
-    }
     
     private var customizationStep: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            Text("Customize Your Experience")
-                .font(.title)
-                .bold()
-            
-            // Shortcut and Theme
-            Group {
-                Text("Basic Settings")
-                    .font(.headline)
+            VStack(alignment: .leading, spacing: 20) {
+                Text("Customize Your Experience")
+                    .font(.title)
+                    .bold()
                 
                 VStack(alignment: .leading, spacing: 15) {
-                    Text("Set your keyboard shortcut:")
-                    KeyboardShortcuts.Recorder("Shortcut:", name: .showPopup)
+                    Text("Global Shortcut")
+                        .font(.headline)
+                    KeyboardShortcuts.Recorder("Activation Shortcut:", name: .showPopup)
+                        .padding(.bottom)
                     
-                    Divider()
-                    
-                    Text("Choose your theme:")
+                    Text("Visual Theme")
+                        .font(.headline)
                     Picker("Theme", selection: $selectedTheme) {
                         Text("Standard").tag("standard")
                         Text("Gradient").tag("gradient")
@@ -173,35 +259,10 @@ struct OnboardingView: View {
                     }
                     .pickerStyle(.segmented)
                 }
-                .padding(.horizontal)
-            }
-            
-            // AI Provider Selection
-            Group {
-                Text("AI Provider Settings")
-                    .font(.headline)
-                
-                VStack(alignment: .leading, spacing: 15) {
-                    Picker("Provider", selection: $selectedProvider) {
-                        Text("Gemini AI").tag("gemini")
-                        Text("OpenAI / Local LLM").tag("openai")
-                        Text("Mistral AI").tag("mistral")
-                    }
-                    .pickerStyle(.segmented)
-                    
-                    // Provider-specific settings
-                    if selectedProvider == "gemini" {
-                        providerSettingsGemini
-                    } else if selectedProvider == "mistral" {
-                        providerSettingsMistral
-                    } else {
-                        providerSettingsOpenAI
-                    }
-                }
-                .padding(.horizontal)
+                .padding()
+                .background(RoundedRectangle(cornerRadius: 12).fill(Color(.controlBackgroundColor)))
             }
         }
-    }
     
     private var providerSettingsGemini: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -276,39 +337,44 @@ struct OnboardingView: View {
     }
     
     private func saveSettingsAndFinish() {
-        // Save theme settings
-        UserDefaults.standard.set(selectedTheme, forKey: "theme_style")
-        UserDefaults.standard.set(selectedTheme != "standard", forKey: "use_gradient_theme")
-        
-        // Save provider-specific settings
-        if selectedProvider == "gemini" {
-            appState.saveGeminiConfig(apiKey: geminiApiKey, model: selectedGeminiModel)
-        } else if selectedProvider == "mistral" {
-            appState.saveMistralConfig(
-                apiKey: mistralApiKey,
-                baseURL: mistralBaseURL,
-                model: mistralModel
-            )
-        } else {
-            appState.saveOpenAIConfig(
-                apiKey: openAIApiKey,
-                baseURL: openAIBaseURL,
-                organization: openAIOrganization,
-                project: openAIProject,
-                model: openAIModelName
-            )
-        }
-        
-        // Set current provider
-        appState.setCurrentProvider(selectedProvider)
-        
-        // Mark onboarding as complete
-        UserDefaults.standard.set(true, forKey: "has_completed_onboarding")
-        
-        // Clean up windows
-        WindowManager.shared.cleanupWindows()
-    }
-}
+          // Save theme settings
+          UserDefaults.standard.set(selectedTheme, forKey: "theme_style")
+          UserDefaults.standard.set(selectedTheme != "standard", forKey: "use_gradient_theme")
+          
+          // Save provider-specific settings
+          switch selectedProvider {
+          case "gemini":
+              appState.saveGeminiConfig(apiKey: geminiApiKey, model: selectedGeminiModel)
+          case "mistral":
+              appState.saveMistralConfig(
+                  apiKey: mistralApiKey,
+                  baseURL: mistralBaseURL,
+                  model: mistralModel
+              )
+          case "local":
+              // Local LLM doesn't need additional configuration as it's managed by LocalLLMProvider
+              // The model download state is already tracked within the LocalLLMProvider
+              break
+          default: // OpenAI/Host
+              appState.saveOpenAIConfig(
+                  apiKey: openAIApiKey,
+                  baseURL: openAIBaseURL,
+                  organization: openAIOrganization,
+                  project: openAIProject,
+                  model: openAIModelName
+              )
+          }
+          
+          // Set current provider
+          appState.setCurrentProvider(selectedProvider)
+          
+          // Mark onboarding as complete
+          UserDefaults.standard.set(true, forKey: "has_completed_onboarding")
+          
+          // Clean up windows
+          WindowManager.shared.cleanupWindows()
+      }
+  }
 
 struct OnboardingStep {
     let title: String
@@ -334,6 +400,73 @@ struct LinkText: View {
             Text(".")
                 .font(.caption)
                 .foregroundColor(.secondary)
+        }
+    }
+}
+
+// Helper Views
+struct FeatureRow: View {
+    let icon: String
+    let title: String
+    let description: String
+    
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icon)
+                .font(.title2)
+                .foregroundColor(.accentColor)
+                .frame(width: 30, alignment: .center)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.headline)
+                Text(description)
+                    .foregroundColor(.secondary)
+            }
+            Spacer()
+        }
+    }
+}
+
+struct FeatureSection: View {
+    let title: String
+    let items: [String]
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.headline)
+            
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(items, id: \.self) { item in
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                            .frame(width: 20, alignment: .center)
+                        Text(item)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer()
+                    }
+                }
+            }
+            .padding(.leading, 4)
+        }
+        }
+    }
+
+struct AccessibilityReason: View {
+    let number: String
+    let text: String
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            Text(number)
+                .font(.headline)
+                .foregroundColor(.white)
+                .frame(width: 24, height: 24)
+                .background(Circle().fill(Color.accentColor))
+            
+            Text(text)
         }
     }
 }
