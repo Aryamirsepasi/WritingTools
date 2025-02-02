@@ -1,5 +1,6 @@
 import SwiftUI
 import MarkdownUI
+import UniformTypeIdentifiers
 
 struct ChatMessage: Identifiable, Equatable {
     let id = UUID()
@@ -21,8 +22,7 @@ struct ResponseView: View {
     @AppStorage("use_gradient_theme") private var useGradientTheme = false
     @State private var inputText: String = ""
     @State private var isRegenerating: Bool = false
-    @State private var scrollProxy: ScrollViewProxy?
-    @State private var latestMessageId: UUID?
+    @State private var uploadedFileName: String? = nil  // To show file upload confirmation
     
     init(content: String, selectedText: String, option: WritingOption) {
         self._viewModel = StateObject(wrappedValue: ResponseViewModel(
@@ -33,58 +33,93 @@ struct ResponseView: View {
     }
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Top toolbar with controls
-            HStack {
-                Button(action: { viewModel.copyContent() }) {
-                    Label(viewModel.showCopyConfirmation ? "Copied!" : "Copy",
-                          systemImage: viewModel.showCopyConfirmation ? "checkmark" : "doc.on.doc")
+        ZStack {
+            VStack(spacing: 0) {
+                // Top toolbar with the Copy button.
+                HStack {
+                    Button(action: { viewModel.copyContent() }) {
+                        Label(viewModel.showCopyConfirmation ? "Copied!" : "Copy",
+                              systemImage: viewModel.showCopyConfirmation ? "checkmark" : "doc.on.doc")
+                    }
+                    .animation(.easeInOut, value: viewModel.showCopyConfirmation)
+                    Spacer()
                 }
-                .animation(.easeInOut, value: viewModel.showCopyConfirmation)
+                .padding()
+                .background(Color(.windowBackgroundColor))
                 
-                Spacer()
-            }
-            .padding()
-            .background(Color(.windowBackgroundColor))
-            
-            // Chat messages area
-            ScrollViewReader { proxy in
-                ScrollView {
-                    LazyVStack(spacing: 16) {
-                        ForEach(viewModel.messages) { message in
-                            ChatMessageView(message: message, fontSize: viewModel.fontSize)
-                                .id(message.id)
-                                .frame(maxWidth: .infinity, alignment: message.role == "user" ? .trailing : .leading)
+                // Chat messages area
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(spacing: 16) {
+                            ForEach(viewModel.messages) { message in
+                                ChatMessageView(message: message, fontSize: viewModel.fontSize)
+                                    .id(message.id)
+                                    .frame(maxWidth: .infinity, alignment: message.role == "user" ? .trailing : .leading)
+                            }
+                        }
+                        .padding()
+                    }
+                    .onChange(of: viewModel.messages, initial: true) { oldValue, newValue in
+                        if let lastId = newValue.last?.id {
+                            withAnimation {
+                                proxy.scrollTo(lastId, anchor: .bottom)
+                            }
                         }
                     }
-                    .padding()
                 }
-                .onChange(of: viewModel.messages, initial: true) { oldValue, newValue in
-                    if let lastId = newValue.last?.id {
-                        withAnimation {
-                            proxy.scrollTo(lastId, anchor: .bottom)
+                
+                // Input area with attach button always shown.
+                VStack(spacing: 8) {
+                    Divider()
+                    HStack(spacing: 8) {
+                        // Always show the attach icon for all providers.
+                        Button(action: uploadFile) {
+                            Image(systemName: "paperclip")
                         }
+                        .help("Upload an image")
+                        
+                        TextField("Ask a follow-up question...", text: $inputText)
+                            .textFieldStyle(.plain)
+                            .appleStyleTextField(
+                                text: inputText,
+                                isLoading: isRegenerating,
+                                onSubmit: sendMessage
+                            )
+                        
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
+                    
+                    // Show confirmation for attached file
+                    if let fileName = uploadedFileName {
+                        HStack {
+                            Text("Uploaded: \(fileName)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Button(action: {
+                                uploadedFileName = nil
+                                AppState.shared.selectedImages = []
+                            }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(.red)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .padding(.horizontal)
                     }
                 }
+                .background(Color(.windowBackgroundColor))
             }
             
-            // Input area
-            VStack(spacing: 8) {
-                Divider()
-                
-                HStack(spacing: 8) {
-                    TextField("Ask a follow-up question...", text: $inputText)
-                        .textFieldStyle(.plain)
-                        .appleStyleTextField(
-                            text: inputText,
-                            isLoading: isRegenerating,
-                            onSubmit: sendMessage
-                        )
-                }
-                .padding(.horizontal)
-                .padding(.vertical, 8)
+            // Overlay loading/processing animation while waiting for response.
+            if isRegenerating {
+                Color.black.opacity(0.4)
+                    .ignoresSafeArea()
+                ProgressView("Processing...")
+                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    .foregroundColor(.white)
+                    .scaleEffect(1.2)
             }
-            .background(Color(.windowBackgroundColor))
         }
         .windowBackground(useGradient: useGradientTheme)
     }
@@ -96,6 +131,37 @@ struct ResponseView: View {
         isRegenerating = true
         viewModel.processFollowUpQuestion(question) {
             isRegenerating = false
+        }
+    }
+    
+    private func uploadFile() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.allowedContentTypes = [UTType.png, UTType.jpeg, UTType.tiff, UTType.gif]
+        
+        if let window = NSApp.keyWindow {
+            panel.beginSheetModal(for: window) { response in
+                handlePanelResponse(response: response, panel: panel)
+            }
+        } else {
+            panel.begin { response in
+                handlePanelResponse(response: response, panel: panel)
+            }
+        }
+    }
+    
+    private func handlePanelResponse(response: NSApplication.ModalResponse, panel: NSOpenPanel) {
+        if response == .OK, let url = panel.url {
+            do {
+                let fileData = try Data(contentsOf: url)
+                DispatchQueue.main.async {
+                    AppState.shared.selectedImages.append(fileData)
+                    self.uploadedFileName = url.lastPathComponent
+                }
+            } catch {
+                print("Error reading file: \(error.localizedDescription)")
+            }
         }
     }
 }
@@ -139,7 +205,7 @@ struct ChatMessageView: View {
     }
 }
 
-// A small convenience enum for clarity (optional)
+// A small convenience enum for clarity
 fileprivate enum MessageRole {
     case user, assistant
 }
@@ -151,7 +217,6 @@ extension View {
     }
 }
 
-// Update ResponseViewModel to handle chat messages
 final class ResponseViewModel: ObservableObject {
     @Published var messages: [ChatMessage] = []
     @Published var fontSize: CGFloat = 14
@@ -205,7 +270,9 @@ final class ResponseViewModel: ObservableObject {
                     Use Markdown formatting to make your response more readable.
                     """,
                     userPrompt: contextualPrompt,
-                    images: AppState.shared.selectedImages
+                    images: AppState.shared.selectedImages,
+                    streaming: true // Use streaming in the response window
+
                 )
                 
                 DispatchQueue.main.async {
@@ -231,13 +298,13 @@ final class ResponseViewModel: ObservableObject {
         let conversationText = messages.map { message in
             return "\(message.role.capitalized): \(message.content)" // Format each message with role
         }.joined(separator: "\n\n") // Join messages with double newlines for readability
-
+        
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(conversationText, forType: .string)
-
+        
         showCopyConfirmation = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
             self.showCopyConfirmation = false
         }
     }
-    }
+}

@@ -88,7 +88,7 @@ struct SettingsView: View {
                         Text("Gemini AI").tag("gemini")
                         Text("OpenAI / Local LLM via Host").tag("openai")
                         Text("Mistral AI").tag("mistral")
-                        Text("Local LLM (Phi-3.5)").tag("local")
+                        Text("Local LLM (LLama 3.2 3B)").tag("local")
                     }
                 }
             }
@@ -245,10 +245,9 @@ struct LocalLLMSettingsView: View {
             // Model Information Section
             GroupBox("Model Information") {
                 VStack(alignment: .leading, spacing: 8) {
-                    InfoRow(label: "Model", value: "Phi-3.5 (4-bit Quantized)")
-                    InfoRow(label: "Size", value: "~1.2GB")
+                    InfoRow(label: "Model", value: "Llama3.2 3B (4-bit Quantized)")
+                    InfoRow(label: "Size", value: "~1.8GB")
                     InfoRow(label: "Optimized", value: "Apple Silicon")
-                    InfoRow(label: "License", value: "MIT")
                 }
                 .padding(.vertical, 4)
             }

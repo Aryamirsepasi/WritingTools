@@ -218,7 +218,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
     
     // Shows the main popup window when shortcut is triggered
-     private func showPopup() {
+    private func showPopup() {
         appState.activeProvider.cancel()
         
         DispatchQueue.main.async { [weak self] in
@@ -231,30 +231,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             self.closePopupWindow()
             
             let generalPasteboard = NSPasteboard.general
-            
-            // Get initial pasteboard content
             let oldContents = generalPasteboard.string(forType: .string)
             
-            // Prioritized image types (in order of preference)
-            let supportedImageTypes = [
-                NSPasteboard.PasteboardType("public.png"),
-                NSPasteboard.PasteboardType("public.jpeg"),
-                NSPasteboard.PasteboardType("public.tiff"),
-                NSPasteboard.PasteboardType("com.compuserve.gif"),
-                NSPasteboard.PasteboardType("public.image")
-            ]
-            var foundImage: Data? = nil
-            
-            // Try to find the first available image in order of preference
-            for type in supportedImageTypes {
-                if let data = generalPasteboard.data(forType: type) {
-                    foundImage = data
-                    NSLog("Selected image type: \(type)")
-                    break // Take only the first matching format
-                }
-            }
-            
-            // Clear and perform copy command
+            // Clear the pasteboard and simulate a Copy (Cmd+C)
             generalPasteboard.clearContents()
             let source = CGEventSource(stateID: .hidSystemState)
             let keyDown = CGEvent(keyboardEventSource: source, virtualKey: 0x08, keyDown: true)
@@ -264,25 +243,42 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             keyDown?.post(tap: .cghidEventTap)
             keyUp?.post(tap: .cghidEventTap)
             
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+            // Wait a bit so that the copy command has time to update the pasteboard…
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
                 guard let self = self else { return }
+                
+                // Try to read image data now (after copy simulation)
+                let supportedImageTypes = [
+                    NSPasteboard.PasteboardType("public.png"),
+                    NSPasteboard.PasteboardType("public.jpeg"),
+                    NSPasteboard.PasteboardType("public.tiff"),
+                    NSPasteboard.PasteboardType("com.compuserve.gif"),
+                    NSPasteboard.PasteboardType("public.image")
+                ]
+                var foundImage: Data? = nil
+                for type in supportedImageTypes {
+                    if let data = generalPasteboard.data(forType: type) {
+                        foundImage = data
+                        NSLog("Selected image type (post-copy): \(type)")
+                        break
+                    }
+                }
+                
+                // Read the (possibly updated) text from the pasteboard
                 let selectedText = generalPasteboard.string(forType: .string) ?? ""
-                
-                // Update app state with found image if any
-                self.appState.selectedImages = foundImage.map { [$0] } ?? []
-                
                 generalPasteboard.clearContents()
                 if let oldContents = oldContents {
                     generalPasteboard.setString(oldContents, forType: .string)
                 }
                 
+                self.appState.selectedText = selectedText
+                self.appState.selectedImages = foundImage.map { [$0] } ?? []
+                
+                // Create and show the popup window
                 let window = PopupWindow(appState: self.appState)
                 window.delegate = self
-                
-                self.appState.selectedText = selectedText
                 self.popupWindow = window
                 
-                // Set appropriate window size based on content
                 if !selectedText.isEmpty || !self.appState.selectedImages.isEmpty {
                     window.setContentSize(NSSize(width: 400, height: 400))
                 } else {

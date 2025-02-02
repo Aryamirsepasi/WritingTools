@@ -116,3 +116,66 @@ extension View {
         modifier(WindowBackground(useGradient: useGradient))
     }
 }
+
+
+struct PopupBackgroundModifier: ViewModifier {
+    @Environment(\.colorScheme) var colorScheme
+    let useGradientTheme: Bool
+    
+    var currentTheme: AppTheme {
+        if !useGradientTheme {
+            return .standard
+        }
+        return UserDefaults.standard.string(forKey: "theme_style") == "glass" ? .glass : .gradient
+    }
+    
+    func body(content: Content) -> some View {
+        content
+            .background(
+                Group {
+                    switch currentTheme {
+                    case .standard:
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color(.windowBackgroundColor))
+                    case .gradient:
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(
+                                LinearGradient(
+                                    colors: colorScheme == .light ? [
+                                        Color(hex: "f1c6bc"),
+                                        Color(hex: "b4bbef"),
+                                        Color(hex: "e9d686"),
+                                        Color(hex: "b9c7ee")
+                                    ] : [
+                                        Color(hex: "18323D"),
+                                        Color(hex: "164066"),
+                                        Color(hex: "35423E"),
+                                        Color(hex: "4E4246")
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                    case .glass:
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(.ultraThinMaterial)
+                            .overlay(
+                                Group {
+                                    if colorScheme == .light {
+                                        LinearGradient(
+                                            colors: [
+                                                Color.white.opacity(0.1),
+                                                Color.white.opacity(0.2)
+                                            ],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    }
+                                }
+                            )
+                    }
+                }
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+}

@@ -12,11 +12,11 @@ class PopupWindow: NSWindow {
         self.commandsManager = CustomCommandsManager()
         
         super.init(
-            contentRect: NSRect(x: 0, y: 0, width: 320, height: 100),
-            styleMask: [.borderless],
-            backing: .buffered,
-            defer: true
-        )
+                    contentRect: NSRect(x: 0, y: 0, width: 320, height: 100),
+                    styleMask: [.borderless, .fullSizeContentView],
+                    backing: .buffered,
+                    defer: true
+                )
         
         self.isReleasedWhenClosed = false
         
@@ -217,6 +217,15 @@ class PopupWindow: NSWindow {
         windowFrame.origin.y = max(screenFrame.minY + padding, min(windowFrame.origin.y, screenFrame.maxY - windowFrame.height - padding))
         
         setFrame(windowFrame, display: true)
+    }
+    
+    // Close via ESC Key
+    override func keyDown(with event: NSEvent) {
+        if event.keyCode == 53 { // ESC key
+            self.close()
+        } else {
+            super.keyDown(with: event)
+        }
     }
     
 }

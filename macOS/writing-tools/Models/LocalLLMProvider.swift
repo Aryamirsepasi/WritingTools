@@ -22,10 +22,10 @@ class LocalLLMProvider: ObservableObject, AIProvider {
     private let maxRetries = 3
     
     
-    // Using Phi-3.5-mini 4-bit quantized model as default for better device compatibility
-    let modelConfiguration = ModelRegistry.phi3_5_4bit
+    // Using Llama3.2 4-bit quantized model as default for better device compatibility
+    let modelConfiguration = ModelRegistry.llama3_2_3B_4bit
     let generateParameters = GenerateParameters(temperature: 0.6)
-    let maxTokens = 240
+    let maxTokens = 4096
     let displayEveryNTokens = 4
     
     enum LoadState {
@@ -37,16 +37,16 @@ class LocalLLMProvider: ObservableObject, AIProvider {
     
     init() {
         // Get the Documents directory
-           guard let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
-               print("Could not find Documents directory")
-               modelDirectory = FileManager.default.temporaryDirectory // Fallback
-               return
-           }
-           
-           // Set the correct model directory path
-           modelDirectory = documentsPath
-               .appendingPathComponent("huggingface/models/mlx-community/Phi-3.5-mini-instruct-4bit")
-
+        guard let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            print("Could not find Documents directory")
+            modelDirectory = FileManager.default.temporaryDirectory // Fallback
+            return
+        }
+        
+        // Set the correct model directory path
+        modelDirectory = documentsPath
+            .appendingPathComponent("huggingface/models/mlx-community/Phi-3.5-mini-instruct-4bit")
+        
         
         // Limit the buffer cache to 20MB
         MLX.GPU.set(cacheLimit: 20 * 1024 * 1024)
@@ -104,15 +104,15 @@ class LocalLLMProvider: ObservableObject, AIProvider {
         // First ensure we're not currently downloading or using the model
         guard !isDownloading && !running else {
             throw NSError(domain: "LocalLLM",
-                         code: -1,
-                         userInfo: [NSLocalizedDescriptionKey: "Cannot delete while model is in use"])
+                          code: -1,
+                          userInfo: [NSLocalizedDescriptionKey: "Cannot delete while model is in use"])
         }
         
         // Get the Documents directory
         guard let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
             throw NSError(domain: "LocalLLM",
-                         code: -1,
-                         userInfo: [NSLocalizedDescriptionKey: "Could not find Documents directory"])
+                          code: -1,
+                          userInfo: [NSLocalizedDescriptionKey: "Could not find Documents directory"])
         }
         
         // Construct the path to the model
@@ -126,8 +126,8 @@ class LocalLLMProvider: ObservableObject, AIProvider {
             
             guard exists && isDirectory.boolValue else {
                 throw NSError(domain: "LocalLLM",
-                             code: -1,
-                             userInfo: [NSLocalizedDescriptionKey: "Model directory not found"])
+                              code: -1,
+                              userInfo: [NSLocalizedDescriptionKey: "Model directory not found"])
             }
             
             // Delete the directory
@@ -199,7 +199,8 @@ class LocalLLMProvider: ObservableObject, AIProvider {
         }
     }
     
-    func processText(systemPrompt: String?, userPrompt: String, images: [Data]) async throws -> String {
+    // MARK: - Updated processText with OCR support
+    func processText(systemPrompt: String?, userPrompt: String, images: [Data], streaming: Bool = false) async throws -> String {
         guard !running else {
             throw NSError(domain: "LocalLLM", code: -1, userInfo: [NSLocalizedDescriptionKey: "Generation already in progress"])
         }
@@ -215,49 +216,62 @@ class LocalLLMProvider: ObservableObject, AIProvider {
             }
         }
         
-        do {
-            let modelContainer = try await load()
-            
-            // Set random seed for variation
-            MLXRandom.seed(UInt64(Date.timeIntervalSinceReferenceDate * 1000))
-            
-            let finalPrompt = """
-            [INST] \(systemPrompt ?? "You are a helpful assistant.")
-            
-            \(userPrompt) [/INST]
-            """
-            
-            let result = try await modelContainer.perform { [weak self] context in
-                let input = try await context.processor.prepare(input: .init(prompt: finalPrompt))
-                return try MLXLMCommon.generate(
-                    input: input,
-                    parameters: self?.generateParameters ?? GenerateParameters(temperature: 0.6),
-                    context: context
-                ) { [weak self] tokens in
-                    if tokens.count % (self?.displayEveryNTokens ?? 4) == 0 {
-                        let text = context.tokenizer.decode(tokens: tokens)
-                        Task { @MainActor [weak self] in
-                            self?.output = text
-                        }
+        // Run OCR on attached images
+        var ocrExtractedText = ""
+        for image in images {
+            do {
+                let recognized = try await OCRManager.shared.performOCR(on: image)
+                if !recognized.isEmpty {
+                    ocrExtractedText += recognized + "\n"
+                }
+            } catch {
+                print("OCR error (LocalLLM): \(error.localizedDescription)")
+            }
+        }
+        
+        let combinedUserPrompt = ocrExtractedText.isEmpty ? userPrompt : "\(userPrompt)\n\nOCR Extracted Text:\n\(ocrExtractedText)"
+        let finalPrompt = systemPrompt.map { "\($0)\n\n\(combinedUserPrompt)" } ?? combinedUserPrompt
+        
+        let modelContainer = try await load()
+        MLXRandom.seed(UInt64(Date.timeIntervalSinceReferenceDate * 1000))
+        
+        let result = try await modelContainer.perform { [weak self] context in
+            let input = try await context.processor.prepare(input: .init(prompt: finalPrompt))
+            var accumulatedText = ""
+            return try MLXLMCommon.generate(
+                input: input,
+                parameters: self?.generateParameters ?? GenerateParameters(temperature: 0.6),
+                context: context
+            ) { [weak self] tokens in
+                let text = context.tokenizer.decode(tokens: tokens)
+                if streaming {
+                    // Update continuously
+                    Task { @MainActor [weak self] in
+                        self?.output = text
                     }
-                    
-                    if tokens.count >= (self?.maxTokens ?? 240) {
-                        return .stop
-                    } else {
-                        return .more
-                    }
+                } else {
+                    // Accumulate without intermediate updates
+                    accumulatedText = text
+                }
+                if tokens.count >= (self?.maxTokens ?? 240) {
+                    return .stop
+                } else {
+                    return .more
                 }
             }
-            
-            await MainActor.run { [weak self] in
-                self?.stat = " Tokens/second: \(String(format: "%.3f", result.tokensPerSecond))"
-            }
-            return result.output
-            
-        } catch {
-            throw error
         }
+        
+        if !streaming {
+            DispatchQueue.main.async {
+                self.output = result.output
+            }
+        }
+        await MainActor.run { [weak self] in
+            self?.stat = " Tokens/second: \(String(format: "%.3f", result.tokensPerSecond))"
+        }
+        return result.output
     }
+    
     
     func cancel() {
         Task { @MainActor in

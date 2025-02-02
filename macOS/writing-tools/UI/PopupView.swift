@@ -83,16 +83,11 @@ struct PopupView: View {
             }
         }
         .padding(.bottom, 8)
-        .windowBackground(useGradient: useGradientTheme)
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(Color.gray.opacity(0.2), lineWidth: 1)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .shadow(color: Color.black.opacity(0.2), radius: 10, y: 5)
-        .sheet(isPresented: $showingCustomCommands) {
-            CustomCommandsView(commandsManager: commandsManager)
-        }
+                .modifier(PopupBackgroundModifier(useGradientTheme: useGradientTheme))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .strokeBorder(Color.gray.opacity(0.2), lineWidth: 1)
+                )
     }
     
     // Process custom commands
@@ -110,7 +105,8 @@ struct PopupView: View {
                 let result = try await appState.activeProvider.processText(
                     systemPrompt: command.prompt,
                     userPrompt: appState.selectedText,
-                    images: appState.selectedImages
+                    images: appState.selectedImages,
+                    streaming: false
                 )
                 
                 if command.useResponseWindow {
@@ -167,7 +163,8 @@ struct PopupView: View {
                 let result = try await appState.activeProvider.processText(
                     systemPrompt: option.systemPrompt,
                     userPrompt: appState.selectedText,
-                    images: appState.selectedImages
+                    images: appState.selectedImages,
+                    streaming: false
                 )
                 
                 if [.summary, .keyPoints, .table].contains(option) {
@@ -227,7 +224,8 @@ struct PopupView: View {
                 let result = try await appState.activeProvider.processText(
                     systemPrompt: systemPrompt,
                     userPrompt: userPrompt,
-                    images: appState.selectedImages
+                    images: appState.selectedImages,
+                    streaming: false
                 )
                 
                 // Always show response in a new window

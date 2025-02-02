@@ -1,5 +1,5 @@
-// MistralProvider.swift
 import Foundation
+
 struct MistralConfig: Codable {
     var apiKey: String
     var baseURL: String
@@ -30,32 +30,42 @@ class MistralProvider: ObservableObject, AIProvider {
         self.config = config
     }
     
-    func processText(systemPrompt: String? = "You are a helpful writing assistant.", userPrompt: String, images: [Data] = []) async throws -> String {
-        // Mistral's text completion endpoint doesn't support images, so we ignore the images parameter
-        
+    
+    func processText(systemPrompt: String? = "You are a helpful writing assistant.",
+                     userPrompt: String,
+                     images: [Data],
+                     streaming: Bool = false) async throws -> String {
         isProcessing = true
         defer { isProcessing = false }
         
-        guard !config.apiKey.isEmpty else {
-            throw NSError(domain: "MistralAPI", code: -1, userInfo: [NSLocalizedDescriptionKey: "API key is missing."])
+        // Run OCR on any attached images.
+        var ocrExtractedText = ""
+        for image in images {
+            do {
+                let recognized = try await OCRManager.shared.performOCR(on: image)
+                if !recognized.isEmpty {
+                    ocrExtractedText += recognized + "\n"
+                }
+            } catch {
+                print("OCR error (Mistral): \(error.localizedDescription)")
+            }
         }
-        
-        let baseURL = config.baseURL.isEmpty ? MistralConfig.defaultBaseURL : config.baseURL
-        guard let url = URL(string: "\(baseURL)/chat/completions") else {
-            throw NSError(domain: "MistralAPI", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid URL."])
-        }
+        let combinedUserPrompt = ocrExtractedText.isEmpty ? userPrompt : "\(userPrompt)\n\nOCR Extracted Text:\n\(ocrExtractedText)"
         
         var messages: [[String: Any]] = []
         if let systemPrompt = systemPrompt {
             messages.append(["role": "system", "content": systemPrompt])
         }
-        messages.append(["role": "user", "content": userPrompt])
+        messages.append(["role": "user", "content": combinedUserPrompt])
         
         let requestBody: [String: Any] = [
             "model": config.model,
             "messages": messages
         ]
         
+        guard let url = URL(string: "\(config.baseURL)/chat/completions") else {
+            throw NSError(domain: "MistralAPI", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid URL."])
+        }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -63,11 +73,9 @@ class MistralProvider: ObservableObject, AIProvider {
         request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
         
         let (data, response) = try await URLSession.shared.data(for: request)
-        
         guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
             throw NSError(domain: "MistralAPI", code: -1, userInfo: [NSLocalizedDescriptionKey: "Server returned an error."])
         }
-        
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               let choices = json["choices"] as? [[String: Any]],
               let firstChoice = choices.first,
@@ -75,7 +83,6 @@ class MistralProvider: ObservableObject, AIProvider {
               let content = message["content"] as? String else {
             throw NSError(domain: "MistralAPI", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to parse response."])
         }
-        
         return content
     }
     

@@ -9,7 +9,7 @@ Core functionality works well, and it is still an ongoing work in progress.
 ## Working Features
 - All of the tools, including the new response windows and the manual chat option.
 - Input Window even when no text is selected
-- Gemini, OpenAI and Local LLM Support.
+- Gemini, OpenAI, Mistral and Local LLM Support.
 - The Gradient Theme (Dark Mode and Light Mode are supported).
 - Initial Setup, Settings, and About pages.
 
