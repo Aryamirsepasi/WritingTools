@@ -83,11 +83,14 @@ struct PopupView: View {
             }
         }
         .padding(.bottom, 8)
-                .modifier(PopupBackgroundModifier(useGradientTheme: useGradientTheme))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .strokeBorder(Color.gray.opacity(0.2), lineWidth: 1)
-                )
+        .modifier(PopupBackgroundModifier(useGradientTheme: useGradientTheme))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(Color.gray.opacity(0.2), lineWidth: 1)
+        )
+        .sheet(isPresented: $showingCustomCommands) {
+            CustomCommandsView(commandsManager: commandsManager)
+        }
     }
     
     // Process custom commands
@@ -299,7 +302,7 @@ struct OptionButton: View {
                 Image(systemName: option.icon)
                 Text(option.rawValue)
                     .lineLimit(1)
-                                        .truncationMode(.tail)
+                    .truncationMode(.tail)
             }
             .frame(maxWidth: 140)
             .padding()
@@ -322,7 +325,7 @@ struct CustomOptionButton: View {
                 Image(systemName: command.icon)
                 Text(command.name)
                     .lineLimit(1)
-                                        .truncationMode(.tail)
+                    .truncationMode(.tail)
             }
             .frame(maxWidth: 140)
             .padding()
