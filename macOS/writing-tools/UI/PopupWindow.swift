@@ -54,9 +54,13 @@ class PopupWindow: NSWindow {
         }
         
         let popupView = PopupView(appState: appState, closeAction: closeAction)
-        let hostingView = NSHostingView(rootView: popupView)
+        let hostingView = FirstResponderHostingView(rootView: popupView) // Use custom view
         contentView = hostingView
         retainedHostingView = hostingView
+        
+        // Set up first responder
+        self.initialFirstResponder = hostingView
+        self.makeFirstResponder(hostingView)
         
         updateWindowSize()
     }
@@ -238,4 +242,10 @@ extension PopupWindow: NSWindowDelegate {
     func windowDidBecomeKey(_ notification: Notification) {
         level = .popUpMenu
     }
+}
+
+
+
+class FirstResponderHostingView<Content: View>: NSHostingView<Content> {
+    override var acceptsFirstResponder: Bool { true }
 }
