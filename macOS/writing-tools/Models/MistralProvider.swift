@@ -34,20 +34,21 @@ class MistralProvider: ObservableObject, AIProvider {
     func processText(systemPrompt: String? = "You are a helpful writing assistant.",
                      userPrompt: String,
                      images: [Data],
+                     videos: [Data]? = nil,
                      streaming: Bool = false) async throws -> String {
         isProcessing = true
         defer { isProcessing = false }
         
         // Run OCR on any attached images.
         var ocrExtractedText = ""
-        for image in images {
+        for imageData in images {
             do {
-                let recognized = try await OCRManager.shared.performOCR(on: image)
+                let recognized = try await OCRManager.shared.performOCR(on: imageData)
                 if !recognized.isEmpty {
                     ocrExtractedText += recognized + "\n"
                 }
             } catch {
-                print("OCR error (Mistral): \(error.localizedDescription)")
+                print("OCR error: \(error.localizedDescription)")
             }
         }
         let combinedUserPrompt = ocrExtractedText.isEmpty ? userPrompt : "\(userPrompt)\n\nOCR Extracted Text:\n\(ocrExtractedText)"

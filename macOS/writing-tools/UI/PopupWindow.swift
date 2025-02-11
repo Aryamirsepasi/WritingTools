@@ -6,7 +6,7 @@ class PopupWindow: NSWindow {
     private var trackingArea: NSTrackingArea?
     private let appState: AppState
     private let commandsManager: CustomCommandsManager
-    private let windowWidth: CGFloat = 300  // Define fixed width
+    private let windowWidth: CGFloat = 305  // Define fixed width
 
     
     init(appState: AppState) {

@@ -23,15 +23,11 @@ struct ResponseView: View {
     @State private var inputText: String = ""
     @State private var isRegenerating: Bool = false
     @State private var uploadedFileName: String? = nil  // To show file upload confirmation
-    
+
     init(content: String, selectedText: String, option: WritingOption) {
-        self._viewModel = StateObject(wrappedValue: ResponseViewModel(
-            content: content,
-            selectedText: selectedText,
-            option: option
-        ))
+        self._viewModel = StateObject(wrappedValue: ResponseViewModel(content: content, selectedText: selectedText, option: option))
     }
-    
+
     var body: some View {
         ZStack {
             VStack(spacing: 0) {
@@ -46,7 +42,7 @@ struct ResponseView: View {
                 }
                 .padding()
                 .background(Color(.windowBackgroundColor))
-                
+
                 // Chat messages area
                 ScrollViewReader { proxy in
                     ScrollView {
@@ -67,29 +63,25 @@ struct ResponseView: View {
                         }
                     }
                 }
-                
+
                 // Input area with attach button always shown.
                 VStack(spacing: 8) {
                     Divider()
                     HStack(spacing: 8) {
-                        // Always show the attach icon for all providers.
+                        // Attach button now allows images, PDFs, and videos.
                         Button(action: uploadFile) {
                             Image(systemName: "paperclip")
+                                .frame(width: 25, height: 25)
                         }
-                        .help("Upload an image")
-                        
+                        .help("Upload an image, PDF, or video")
+
                         TextField("Ask a follow-up question...", text: $inputText)
                             .textFieldStyle(.plain)
-                            .appleStyleTextField(
-                                text: inputText,
-                                isLoading: isRegenerating,
-                                onSubmit: sendMessage
-                            )
-                        
+                            .appleStyleTextField(text: inputText, isLoading: isRegenerating, onSubmit: sendMessage)
                     }
                     .padding(.horizontal)
                     .padding(.vertical, 8)
-                    
+
                     // Show confirmation for attached file
                     if let fileName = uploadedFileName {
                         HStack {
@@ -99,6 +91,7 @@ struct ResponseView: View {
                             Button(action: {
                                 uploadedFileName = nil
                                 AppState.shared.selectedImages = []
+                                AppState.shared.selectedVideos = []
                             }) {
                                 Image(systemName: "xmark.circle.fill")
                                     .foregroundColor(.red)
@@ -110,7 +103,7 @@ struct ResponseView: View {
                 }
                 .background(Color(.windowBackgroundColor))
             }
-            
+
             // Overlay loading/processing animation while waiting for response.
             if isRegenerating {
                 Color.black.opacity(0.4)
@@ -123,7 +116,7 @@ struct ResponseView: View {
         }
         .windowBackground(useGradient: useGradientTheme)
     }
-    
+
     private func sendMessage() {
         guard !inputText.isEmpty else { return }
         let question = inputText
@@ -133,13 +126,20 @@ struct ResponseView: View {
             isRegenerating = false
         }
     }
-    
+
     private func uploadFile() {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
-        panel.allowedContentTypes = [UTType.png, UTType.jpeg, UTType.tiff, UTType.gif]
-        
+        panel.allowedContentTypes = [
+            UTType.png,
+            UTType.jpeg,
+            UTType.tiff,
+            UTType.gif,
+            UTType.pdf,
+            UTType.movie // NEW: allow video files
+        ]
+
         if let window = NSApp.keyWindow {
             panel.beginSheetModal(for: window) { response in
                 handlePanelResponse(response: response, panel: panel)
@@ -150,13 +150,26 @@ struct ResponseView: View {
             }
         }
     }
-    
+
     private func handlePanelResponse(response: NSApplication.ModalResponse, panel: NSOpenPanel) {
         if response == .OK, let url = panel.url {
             do {
                 let fileData = try Data(contentsOf: url)
                 DispatchQueue.main.async {
-                    AppState.shared.selectedImages.append(fileData)
+                    if let fileType = UTType(filenameExtension: url.pathExtension.lowercased()) {
+                        if fileType.conforms(to: .pdf) {
+                            AppState.shared.selectedImages = [fileData]
+                            AppState.shared.selectedVideos = []
+                        } else if fileType.conforms(to: .movie) {
+                            AppState.shared.selectedVideos = [fileData]
+                            AppState.shared.selectedImages = []
+                        } else {
+                            AppState.shared.selectedImages.append(fileData)
+                        }
+                    } else {
+                        // Fallback if the file type could not be determined
+                        AppState.shared.selectedImages.append(fileData)
+                    }
                     self.uploadedFileName = url.lastPathComponent
                 }
             } catch {
@@ -167,15 +180,11 @@ struct ResponseView: View {
 }
 
 struct ChatMessageView: View {
-    
     let message: ChatMessage
     let fontSize: CGFloat
     
     var body: some View {
-        // If user message is on the right, assistant on the left:
         HStack(alignment: .top, spacing: 12) {
-            
-            // If it's assistant, push bubble to the left
             if message.role == "assistant" {
                 bubbleView(role: message.role)
                 Spacer(minLength: 15)
@@ -194,26 +203,12 @@ struct ChatMessageView: View {
                 .font(.system(size: fontSize))
                 .textSelection(.enabled)
                 .chatBubbleStyle(isFromUser: message.role == "user")
-            
-            // Time stamp
             Text(message.timestamp.formatted(.dateTime.hour().minute()))
                 .font(.caption2)
                 .foregroundColor(.secondary)
                 .padding(.bottom, 2)
         }
         .frame(maxWidth: 500, alignment: role == "assistant" ? .leading : .trailing)
-    }
-}
-
-// A small convenience enum for clarity
-fileprivate enum MessageRole {
-    case user, assistant
-}
-
-
-extension View {
-    func maxWidth(_ width: CGFloat) -> some View {
-        frame(maxWidth: width)
     }
 }
 
@@ -228,31 +223,20 @@ final class ResponseViewModel: ObservableObject {
     init(content: String, selectedText: String, option: WritingOption) {
         self.selectedText = selectedText
         self.option = option
-        
-        // Initialize with the first message
-        self.messages.append(ChatMessage(
-            role: "assistant",
-            content: content
-        ))
+        self.messages.append(ChatMessage(role: "assistant", content: content))
     }
     
     func processFollowUpQuestion(_ question: String, completion: @escaping () -> Void) {
-        // Add user message
         DispatchQueue.main.async {
-            self.messages.append(ChatMessage(
-                role: "user",
-                content: question
-            ))
+            self.messages.append(ChatMessage(role: "user", content: question))
         }
         
         Task {
             do {
-                // Build conversation history
                 let conversationHistory = messages.map { message in
                     return "\(message.role == "user" ? "User" : "Assistant"): \(message.content)"
                 }.joined(separator: "\n\n")
                 
-                // Create prompt with context
                 let contextualPrompt = """
                 Previous conversation:
                 \(conversationHistory)
@@ -265,21 +249,17 @@ final class ResponseViewModel: ObservableObject {
                 let result = try await AppState.shared.activeProvider.processText(
                     systemPrompt: """
                     You are a writing and coding assistant. Your sole task is to respond to the user's instruction thoughtfully and comprehensively.
-                    If the instruction is a question, provide a detailed answer. But always return the best and most accurate answer and not different options. 
-                    If it's a request for help, provide clear guidance and examples where appropriate. Make sure tu use the language used or specified by the user instruction.
+                    If the instruction is a question, provide a detailed answer.
                     Use Markdown formatting to make your response more readable.
                     """,
                     userPrompt: contextualPrompt,
                     images: AppState.shared.selectedImages,
-                    streaming: true // Use streaming in the response window
-
+                    videos: AppState.shared.selectedVideos,
+                    streaming: true
                 )
                 
                 DispatchQueue.main.async {
-                    self.messages.append(ChatMessage(
-                        role: "assistant",
-                        content: result
-                    ))
+                    self.messages.append(ChatMessage(role: "assistant", content: result))
                     completion()
                 }
             } catch {
@@ -294,10 +274,9 @@ final class ResponseViewModel: ObservableObject {
     }
     
     func copyContent() {
-        // Concatenate all messages in the conversation
         let conversationText = messages.map { message in
-            return "\(message.role.capitalized): \(message.content)" // Format each message with role
-        }.joined(separator: "\n\n") // Join messages with double newlines for readability
+            return "\(message.role.capitalized): \(message.content)"
+        }.joined(separator: "\n\n")
         
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(conversationText, forType: .string)

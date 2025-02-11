@@ -24,8 +24,9 @@ class LocalLLMProvider: ObservableObject, AIProvider {
     
     // Using Llama3.2 4-bit quantized model as default for better device compatibility
     let modelConfiguration = ModelRegistry.llama3_2_3B_4bit
+    private var modelPath = "huggingface/models/mlx-community/Llama-3.2-3B-Instruct-4bit"
     let generateParameters = GenerateParameters(temperature: 0.6)
-    let maxTokens = 4096
+    let maxTokens = 120000
     let displayEveryNTokens = 4
     
     enum LoadState {
@@ -45,7 +46,7 @@ class LocalLLMProvider: ObservableObject, AIProvider {
         
         // Set the correct model directory path
         modelDirectory = documentsPath
-            .appendingPathComponent("huggingface/models/mlx-community/Phi-3.5-mini-instruct-4bit")
+            .appendingPathComponent(modelPath)
         
         
         // Limit the buffer cache to 20MB
@@ -117,7 +118,7 @@ class LocalLLMProvider: ObservableObject, AIProvider {
         
         // Construct the path to the model
         let modelPath = documentsPath
-            .appendingPathComponent("huggingface/models/mlx-community/Phi-3.5-mini-instruct-4bit")
+            .appendingPathComponent(self.modelPath)
         
         do {
             // Check if directory exists
@@ -200,7 +201,11 @@ class LocalLLMProvider: ObservableObject, AIProvider {
     }
     
     // MARK: - Updated processText with OCR support
-    func processText(systemPrompt: String?, userPrompt: String, images: [Data], streaming: Bool = false) async throws -> String {
+    func processText(systemPrompt: String? = "You are a helpful writing assistant.",
+                     userPrompt: String,
+                     images: [Data],
+                     videos: [Data]? = nil,
+                     streaming: Bool = false) async throws -> String {
         guard !running else {
             throw NSError(domain: "LocalLLM", code: -1, userInfo: [NSLocalizedDescriptionKey: "Generation already in progress"])
         }
@@ -218,14 +223,14 @@ class LocalLLMProvider: ObservableObject, AIProvider {
         
         // Run OCR on attached images
         var ocrExtractedText = ""
-        for image in images {
+        for imageData in images {
             do {
-                let recognized = try await OCRManager.shared.performOCR(on: image)
+                let recognized = try await OCRManager.shared.performOCR(on: imageData)
                 if !recognized.isEmpty {
                     ocrExtractedText += recognized + "\n"
                 }
             } catch {
-                print("OCR error (LocalLLM): \(error.localizedDescription)")
+                print("OCR error: \(error.localizedDescription)")
             }
         }
         
@@ -253,7 +258,7 @@ class LocalLLMProvider: ObservableObject, AIProvider {
                     // Accumulate without intermediate updates
                     accumulatedText = text
                 }
-                if tokens.count >= (self?.maxTokens ?? 240) {
+                if tokens.count >= (self?.maxTokens ?? 120000) {
                     return .stop
                 } else {
                     return .more

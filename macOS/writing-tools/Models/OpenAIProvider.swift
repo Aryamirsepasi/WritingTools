@@ -1,6 +1,4 @@
 import Foundation
-import Vision
-import AppKit
 
 struct OpenAIConfig: Codable {
     var apiKey: String
@@ -14,20 +12,17 @@ struct OpenAIConfig: Codable {
 }
 
 enum OpenAIModel: String, CaseIterable {
-    case gpt4 = "gpt-4"
-    case gpt35Turbo = "gpt-3.5-turbo"
     case gpt4o = "gpt-4o"
     case gpt4oMini = "gpt-4o-mini"
     
     var displayName: String {
         switch self {
-        case .gpt4: return "GPT-4 (Most Capable)"
-        case .gpt35Turbo: return "GPT-3.5 Turbo (Faster)"
         case .gpt4o: return "GPT-4o (Optimized)"
         case .gpt4oMini: return "GPT-4o Mini (Lightweight)"
         }
     }
 }
+
 @MainActor
 class OpenAIProvider: ObservableObject, AIProvider {
     @Published var isProcessing = false
@@ -37,24 +32,27 @@ class OpenAIProvider: ObservableObject, AIProvider {
         self.config = config
     }
     
-    
     func processText(systemPrompt: String? = "You are a helpful writing assistant.",
                      userPrompt: String,
                      images: [Data],
+                     videos: [Data]? = nil,
                      streaming: Bool = false) async throws -> String {
         isProcessing = true
         defer { isProcessing = false }
         
+        // OpenAI's API does not support images or videos directly.
+        // For now, we ignore videos.
+        
         // Run OCR on any attached images.
         var ocrExtractedText = ""
-        for image in images {
+        for imageData in images {
             do {
-                let recognized = try await OCRManager.shared.performOCR(on: image)
+                let recognized = try await OCRManager.shared.performOCR(on: imageData)
                 if !recognized.isEmpty {
                     ocrExtractedText += recognized + "\n"
                 }
             } catch {
-                print("OCR error (OpenAI): \(error.localizedDescription)")
+                print("OCR error: \(error.localizedDescription)")
             }
         }
         let combinedUserPrompt = ocrExtractedText.isEmpty ? userPrompt : "\(userPrompt)\n\nOCR Extracted Text:\n\(ocrExtractedText)"
@@ -75,7 +73,8 @@ class OpenAIProvider: ObservableObject, AIProvider {
         
         let baseURL = config.baseURL.isEmpty ? OpenAIConfig.defaultBaseURL : config.baseURL
         guard let url = URL(string: "\(baseURL)/chat/completions") else {
-            throw NSError(domain: "OpenAIAPI", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid URL."])
+            throw NSError(domain: "OpenAIAPI", code: -1,
+                          userInfo: [NSLocalizedDescriptionKey: "Invalid URL."])
         }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -87,10 +86,10 @@ class OpenAIProvider: ObservableObject, AIProvider {
         request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
         
         if streaming {
-            // Use streaming bytes API:
             let (stream, response) = try await URLSession.shared.bytes(for: request)
             guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-                throw NSError(domain: "OpenAIAPI", code: -1, userInfo: [NSLocalizedDescriptionKey: "Server returned an error."])
+                throw NSError(domain: "OpenAIAPI", code: -1,
+                              userInfo: [NSLocalizedDescriptionKey: "Server returned an error."])
             }
             var finalResult = ""
             for try await line in stream.lines {
@@ -103,22 +102,22 @@ class OpenAIProvider: ObservableObject, AIProvider {
                    let delta = choices.first?["delta"] as? [String: Any],
                    let content = delta["content"] as? String {
                     finalResult += content
-                    // (You could also call a streaming callback here to update UI continuously.)
                 }
             }
             return finalResult
         } else {
-            // Non-streaming call
             let (data, response) = try await URLSession.shared.data(for: request)
             guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-                throw NSError(domain: "OpenAIAPI", code: -1, userInfo: [NSLocalizedDescriptionKey: "Server returned an error."])
+                throw NSError(domain: "OpenAIAPI", code: -1,
+                              userInfo: [NSLocalizedDescriptionKey: "Server returned an error."])
             }
             guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let choices = json["choices"] as? [[String: Any]],
                   let firstChoice = choices.first,
                   let message = firstChoice["message"] as? [String: Any],
                   let content = message["content"] as? String else {
-                throw NSError(domain: "OpenAIAPI", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to parse response."])
+                throw NSError(domain: "OpenAIAPI", code: -1,
+                              userInfo: [NSLocalizedDescriptionKey: "Failed to parse response."])
             }
             return content
         }

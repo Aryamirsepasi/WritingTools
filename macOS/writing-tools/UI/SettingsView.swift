@@ -245,7 +245,7 @@ struct LocalLLMSettingsView: View {
             // Model Information Section
             GroupBox("Model Information") {
                 VStack(alignment: .leading, spacing: 8) {
-                    InfoRow(label: "Model", value: "Llama3.2 3B (4-bit Quantized)")
+                    InfoRow(label: "Model", value: "LLama 3.2 3B (4-bit Quantized)")
                     InfoRow(label: "Size", value: "~1.8GB")
                     InfoRow(label: "Optimized", value: "Apple Silicon")
                 }

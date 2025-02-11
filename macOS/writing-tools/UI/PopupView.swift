@@ -109,6 +109,7 @@ struct PopupView: View {
                     systemPrompt: command.prompt,
                     userPrompt: appState.selectedText,
                     images: appState.selectedImages,
+                    videos: appState.selectedVideos,
                     streaming: false
                 )
                 
@@ -167,6 +168,7 @@ struct PopupView: View {
                     systemPrompt: option.systemPrompt,
                     userPrompt: appState.selectedText,
                     images: appState.selectedImages,
+                    videos: appState.selectedVideos,
                     streaming: false
                 )
                 
@@ -228,6 +230,7 @@ struct PopupView: View {
                     systemPrompt: systemPrompt,
                     userPrompt: userPrompt,
                     images: appState.selectedImages,
+                    videos: appState.selectedVideos,
                     streaming: false
                 )
                 

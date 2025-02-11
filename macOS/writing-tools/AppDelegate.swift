@@ -1,17 +1,13 @@
 import SwiftUI
 import KeyboardShortcuts
 import Carbon.HIToolbox
+import UniformTypeIdentifiers
 
 @MainActor
 class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
-    
-    // Static status item to prevent deallocation
     private static var sharedStatusItem: NSStatusItem?
-    
-    // Property to track service-triggered popups
     private var isServiceTriggered: Bool = false
-    
-    // Computed property to manage the menu bar status item
+
     var statusBarItem: NSStatusItem! {
         get {
             if AppDelegate.sharedStatusItem == nil {
@@ -24,6 +20,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             AppDelegate.sharedStatusItem = newValue
         }
     }
+    
     let appState = AppState.shared
     private var settingsWindow: NSWindow?
     private var aboutWindow: NSWindow?
@@ -32,18 +29,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var aboutHostingView: NSHostingView<AboutView>?
     private let windowAccessQueue = DispatchQueue(label: "com.example.writingtools.windowQueue")
     
-    // Called when app launches - initializes core functionality
     func applicationDidFinishLaunching(_ notification: Notification) {
-        
         NSApp.servicesProvider = self
-        
+
         if CommandLine.arguments.contains("--reset") {
             DispatchQueue.main.async { [weak self] in
                 self?.performRecoveryReset()
             }
             return
         }
-        
+
         DispatchQueue.main.async { [weak self] in
             self?.setupMenuBar()
             
@@ -55,31 +50,37 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 self?.showOnboarding()
             }
             
+            self?.requestAccessibilityPermissions()
         }
-        
+
         KeyboardShortcuts.onKeyUp(for: .showPopup) { [weak self] in
             self?.showPopup()
         }
     }
     
-    // Called when app is about to close - performs cleanup
     func applicationWillTerminate(_ notification: Notification) {
         WindowManager.shared.cleanupWindows()
     }
     
-    // Recreates the menu bar item if it was lost
+    // If launched via a custom URL scheme (e.g. for processing a shared URL)
+    func application(_ application: NSApplication, open urls: [URL]) {
+        for url in urls {
+            if url.scheme == "writingtools", url.host == "processSharedText" {
+                AppState.shared.processURLFromClipboard()
+            }
+        }
+    }
+    
     private func recreateStatusBarItem() {
         AppDelegate.sharedStatusItem = nil
         _ = self.statusBarItem
     }
     
-    // Sets up the status bar item's icon
     private func configureStatusBarItem() {
         guard let button = statusBarItem?.button else { return }
         button.image = NSImage(systemSymbolName: "pencil.circle", accessibilityDescription: "Writing Tools")
     }
     
-    // Creates the menu that appears when clicking the status bar icon
     private func setupMenuBar() {
         guard let statusBarItem = self.statusBarItem else {
             print("Failed to create status bar item")
@@ -96,13 +97,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         statusBarItem.menu = menu
     }
     
-    // Resets app to default state when triggered from menu
     @objc private func resetApp() {
         WindowManager.shared.cleanupWindows()
-        
         recreateStatusBarItem()
         setupMenuBar()
-        
         
         let alert = NSAlert()
         alert.messageText = "App Reset Complete"
@@ -112,21 +110,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         alert.runModal()
     }
     
-    // Full app reset when launched with --reset flag
     private func performRecoveryReset() {
-        // Reset all app defaults
         let domain = Bundle.main.bundleIdentifier!
         UserDefaults.standard.removePersistentDomain(forName: domain)
         UserDefaults.standard.synchronize()
-        
-        // Reset the app state
         WindowManager.shared.cleanupWindows()
-        
-        // Recreate status bar and setup
         recreateStatusBarItem()
         setupMenuBar()
         
-        // Show confirmation
         let alert = NSAlert()
         alert.messageText = "Recovery Complete"
         alert.informativeText = "The app has been reset to its default state."
@@ -135,7 +126,22 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         alert.runModal()
     }
     
-    // Shows the first-time setup/onboarding window
+    private func requestAccessibilityPermissions() {
+        let trusted = AXIsProcessTrusted()
+        if !trusted {
+            let alert = NSAlert()
+            alert.messageText = "Accessibility Access Required"
+            alert.informativeText = "Writing Tools needs accessibility access to detect text selection and simulate keyboard shortcuts. Please grant access in System Settings > Privacy & Security > Accessibility."
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "Open System Settings")
+            alert.addButton(withTitle: "Later")
+            
+            if alert.runModal() == .alertFirstButtonReturn {
+                NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
+            }
+        }
+    }
+    
     private func showOnboarding() {
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 500, height: 400),
@@ -157,7 +163,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         window.makeKeyAndOrderFront(nil)
     }
     
-    // Opens the settings window
     @objc private func showSettings() {
         settingsWindow?.close()
         settingsWindow = nil
@@ -178,7 +183,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         settingsWindow?.contentView = settingsHostingView
         settingsWindow?.delegate = self
         
-        // Ensure window appears in front
         if let window = settingsWindow {
             window.level = .floating
             NSApp.activate()
@@ -187,7 +191,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
     }
     
-    // Opens the about window
     @objc private func showAbout() {
         aboutWindow?.close()
         aboutWindow = nil
@@ -208,7 +211,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         aboutWindow?.contentView = aboutHostingView
         aboutWindow?.delegate = self
         
-        // Ensure window appears in front
         if let window = aboutWindow {
             window.level = .floating
             NSApp.activate(ignoringOtherApps: true)
@@ -217,7 +219,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
     }
     
-    // Shows the main popup window when shortcut is triggered
     private func showPopup() {
         appState.activeProvider.cancel()
         
@@ -229,11 +230,67 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             }
             
             self.closePopupWindow()
-            
             let generalPasteboard = NSPasteboard.general
-            let oldContents = generalPasteboard.string(forType: .string)
             
-            // Clear the pasteboard and simulate a Copy (Cmd+C)
+            // Check for PDF data first
+            if let pdfData = generalPasteboard.readPDF() {
+                print("Clipboard contains PDF data.")
+                let text = PDFHandler.extractText(from: pdfData)
+                self.appState.selectedText = text
+                self.appState.selectedImages = []
+                self.appState.selectedVideos = []
+                generalPasteboard.clearContents()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+                    guard let self = self else { return }
+                    let window = PopupWindow(appState: self.appState)
+                    window.delegate = self
+                    self.popupWindow = window
+                    window.setContentSize(NSSize(width: 400, height: 400))
+                    window.positionNearMouse()
+                    window.makeKeyAndOrderFront(nil)
+                    window.orderFrontRegardless()
+                }
+                return
+            }
+            
+            // Then check for video data
+            if let videoData = generalPasteboard.readVideo() {
+                print("Video branch reached: video data found.")
+                self.appState.selectedText = ""
+                self.appState.selectedImages = []
+                self.appState.selectedVideos = [videoData]
+                generalPasteboard.clearContents()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+                    guard let self = self else { return }
+                    let window = PopupWindow(appState: self.appState)
+                    window.delegate = self
+                    self.popupWindow = window
+                    window.setContentSize(NSSize(width: 400, height: 400))
+                    window.positionNearMouse()
+                    window.makeKeyAndOrderFront(nil)
+                    window.orderFrontRegardless()
+                }
+                return
+            }
+            
+            // Otherwise, fall back to text/images handling
+            let oldContents = generalPasteboard.string(forType: .string)
+            let supportedImageTypes = [
+                NSPasteboard.PasteboardType("public.png"),
+                NSPasteboard.PasteboardType("public.jpeg"),
+                NSPasteboard.PasteboardType("public.tiff"),
+                NSPasteboard.PasteboardType("com.compuserve.gif"),
+                NSPasteboard.PasteboardType("public.image")
+            ]
+            var foundImage: Data? = nil
+            for type in supportedImageTypes {
+                if let data = generalPasteboard.data(forType: type) {
+                    foundImage = data
+                    NSLog("Selected image type (post-copy): \(type)")
+                    break
+                }
+            }
+            
             generalPasteboard.clearContents()
             let source = CGEventSource(stateID: .hidSystemState)
             let keyDown = CGEvent(keyboardEventSource: source, virtualKey: 0x08, keyDown: true)
@@ -243,43 +300,22 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             keyDown?.post(tap: .cghidEventTap)
             keyUp?.post(tap: .cghidEventTap)
             
-            // Wait a bit so that the copy command has time to update the pasteboard…
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
                 guard let self = self else { return }
-                
-                // Try to read image data now (after copy simulation)
-                let supportedImageTypes = [
-                    NSPasteboard.PasteboardType("public.png"),
-                    NSPasteboard.PasteboardType("public.jpeg"),
-                    NSPasteboard.PasteboardType("public.tiff"),
-                    NSPasteboard.PasteboardType("com.compuserve.gif"),
-                    NSPasteboard.PasteboardType("public.image")
-                ]
-                var foundImage: Data? = nil
-                for type in supportedImageTypes {
-                    if let data = generalPasteboard.data(forType: type) {
-                        foundImage = data
-                        NSLog("Selected image type (post-copy): \(type)")
-                        break
-                    }
-                }
-                
-                // Read the (possibly updated) text from the pasteboard
                 let selectedText = generalPasteboard.string(forType: .string) ?? ""
+                self.appState.selectedText = selectedText
+                self.appState.selectedImages = foundImage.map { [$0] } ?? []
+                self.appState.selectedVideos = [] // reset videos if none
                 generalPasteboard.clearContents()
                 if let oldContents = oldContents {
                     generalPasteboard.setString(oldContents, forType: .string)
                 }
                 
-                self.appState.selectedText = selectedText
-                self.appState.selectedImages = foundImage.map { [$0] } ?? []
-                
-                // Create and show the popup window
                 let window = PopupWindow(appState: self.appState)
                 window.delegate = self
                 self.popupWindow = window
                 
-                if !selectedText.isEmpty || !self.appState.selectedImages.isEmpty {
+                if !selectedText.isEmpty || !self.appState.selectedImages.isEmpty || !self.appState.selectedVideos.isEmpty {
                     window.setContentSize(NSSize(width: 400, height: 400))
                 } else {
                     window.setContentSize(NSSize(width: 400, height: 100))
@@ -292,47 +328,24 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
     }
     
-    // Closes and cleans up the popup window
     private func closePopupWindow() {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
-            
             if let existingWindow = self.popupWindow as? PopupWindow {
                 existingWindow.delegate = nil
                 existingWindow.cleanup()
                 existingWindow.close()
-                
                 self.appState.selectedImages = []
+                self.appState.selectedVideos = []
                 self.popupWindow = nil
             }
         }
     }
     
-    // Handles window cleanup when any window is closed
-    func windowWillClose(_ notification: Notification) {
-        guard !isServiceTriggered else { return }
-        
-        guard let window = notification.object as? NSWindow else { return }
-        DispatchQueue.main.async { [weak self] in
-            if window == self?.settingsWindow {
-                self?.settingsHostingView = nil
-                self?.settingsWindow = nil
-            } else if window == self?.aboutWindow {
-                self?.aboutHostingView = nil
-                self?.aboutWindow = nil
-            } else if window == self?.popupWindow {
-                self?.popupWindow?.delegate = nil
-                self?.popupWindow = nil
-            }
-        }
-    }
-    
-    // Service handler for processing selected text
     @objc func handleSelectedText(_ pboard: NSPasteboard, userData: String, error: AutoreleasingUnsafeMutablePointer<NSString>) {
         if let frontmostApp = NSWorkspace.shared.frontmostApplication {
             appState.previousApplication = frontmostApp
             
-            // Prioritized image types (in order of preference)
             let supportedImageTypes = [
                 NSPasteboard.PasteboardType("public.png"),
                 NSPasteboard.PasteboardType("public.jpeg"),
@@ -342,13 +355,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             ]
             
             var foundImage: Data? = nil
-            
-            // Try to find the first available image in order of preference
             for type in supportedImageTypes {
                 if let data = pboard.data(forType: type) {
                     foundImage = data
                     NSLog("Selected image type (Service): \(type)")
-                    break // Take only the first matching format
+                    break
                 }
             }
             
@@ -366,11 +377,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             
             appState.selectedText = selectedText
             appState.selectedImages = foundImage.map { [$0] } ?? []
+            appState.selectedVideos = []
             isServiceTriggered = true
             
             DispatchQueue.main.async { [weak self] in
                 guard let self = self else { return }
-                
                 let window = PopupWindow(appState: self.appState)
                 window.delegate = self
                 
@@ -385,7 +396,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 window.orderFrontRegardless()
                 
                 NSApp.activate()
-                
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     self.isServiceTriggered = false
                 }
@@ -395,9 +405,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             return
         }
     }
+    
+    override func awakeFromNib() {
+        super.awakeFromNib()
+        NSApp.servicesProvider = self
+        NSUpdateDynamicServices()
+    }
 }
 
-// Converts SwiftUI modifier flags to Carbon modifier flags for HotKey library
 extension NSEvent.ModifierFlags {
     var carbonFlags: UInt32 {
         var carbon: UInt32 = 0
@@ -409,15 +424,24 @@ extension NSEvent.ModifierFlags {
     }
 }
 
-// extension to support service registration
 extension AppDelegate {
-    override func awakeFromNib() {
-        super.awakeFromNib()
-        
-        // Register services provider
+    func setupPDFDragAndDrop() {
         NSApp.servicesProvider = self
-
-        // Register the service
         NSUpdateDynamicServices()
+        
+        let fileTypes = [UTType.pdf] as CFArray
+        NSApp.windows.first?.registerForDraggedTypes([NSPasteboard.PasteboardType.fileURL])
+    }
+    
+    func application(_ sender: NSApplication, openFile filename: String) -> Bool {
+        guard filename.lowercased().hasSuffix(".pdf"),
+              let pdfData = try? Data(contentsOf: URL(fileURLWithPath: filename)) else {
+            return false
+        }
+        
+        let text = PDFHandler.extractText(from: pdfData)
+        appState.selectedText = text
+        showPopup()
+        return true
     }
 }
