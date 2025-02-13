@@ -1,0 +1,496 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "" : {
+
+    },
+    "." : {
+
+    },
+    "%lld%%" : {
+
+    },
+    "A new version is available!" : {
+
+    },
+    "About Writing Tools" : {
+
+    },
+    "Activation Shortcut:" : {
+
+    },
+    "Add Custom Command" : {
+
+    },
+    "Add Custom Model" : {
+
+    },
+    "Add Local AI Models" : {
+
+    },
+    "AI Provider" : {
+
+    },
+    "API Key" : {
+
+    },
+    "Appearance" : {
+
+    },
+    "Are you sure you want to delete the downloaded model? You'll need to download it again to use local processing." : {
+
+    },
+    "Ask a follow-up question..." : {
+
+    },
+    "Back" : {
+
+    },
+    "Base URL" : {
+
+    },
+    "Cancel" : {
+
+    },
+    "Change Icon" : {
+
+    },
+    "Check for Updates" : {
+
+    },
+    "Check out Bliss AI on Google Play" : {
+
+    },
+    "Checking for updates..." : {
+
+    },
+    "Choose Your AI Provider" : {
+
+    },
+    "Command Name" : {
+
+    },
+    "Complete Setup" : {
+
+    },
+    "Concise" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prägnant"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conciso"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Concis"
+          }
+        }
+      }
+    },
+    "Copied!" : {
+
+    },
+    "Copy" : {
+
+    },
+    "Created with care by Jesai, a high school student." : {
+
+    },
+    "Custom Button Styles" : {
+
+    },
+    "Custom Commands" : {
+
+    },
+    "Customize Your Experience" : {
+
+    },
+    "Delete" : {
+
+    },
+    "Delete Model" : {
+
+    },
+    "Depending on your device specifications you can download and use one of the local LLM models. However our recommendation for using WritingTools is llama3.2 3b because it performs good on writing tasks and works on most devices." : {
+
+    },
+    "Describe your change..." : {
+
+    },
+    "Download" : {
+
+    },
+    "Download Update" : {
+
+    },
+    "Edit Command" : {
+
+    },
+    "Email: developer@aryamirsepasi.com" : {
+
+    },
+    "Email: jesaitarun@gmail.com" : {
+
+    },
+    "Error" : {
+
+    },
+    "Friendly" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Freundlich"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Amigable"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Amical"
+          }
+        }
+      }
+    },
+    "Gemini AI" : {
+
+    },
+    "Gemini AI Settings" : {
+
+    },
+    "General Settings" : {
+
+    },
+    "Get API Key" : {
+
+    },
+    "Get Mistral API Key" : {
+
+    },
+    "Get OpenAI API Key" : {
+
+    },
+    "Get Started" : {
+
+    },
+    "GitHub Page" : {
+
+    },
+    "Glass" : {
+
+    },
+    "Global Shortcut" : {
+
+    },
+    "Global Shortcut:" : {
+
+    },
+    "Gradient" : {
+
+    },
+    "How to enable:" : {
+
+    },
+    "Icon" : {
+
+    },
+    "Key Points" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hauptpunkte"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Puntos clave"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Points clés"
+          }
+        }
+      }
+    },
+    "Load" : {
+
+    },
+    "Local LLM (LLama 3.2 3B)" : {
+
+    },
+    "Local LLM (Phi-3.5)" : {
+
+    },
+    "Local LLMs: use the instructions on" : {
+
+    },
+    "Mistral AI" : {
+
+    },
+    "Mistral AI Settings" : {
+
+    },
+    "Model" : {
+
+    },
+    "Model Loaded" : {
+
+    },
+    "Model Name" : {
+
+    },
+    "Name" : {
+
+    },
+    "New Command" : {
+
+    },
+    "Next" : {
+
+    },
+    "OK" : {
+
+    },
+    "Ollama Documentation" : {
+
+    },
+    "Open Model Store" : {
+
+    },
+    "Open System Settings" : {
+
+    },
+    "OpenAI / Local LLM" : {
+
+    },
+    "OpenAI / Local LLM Settings" : {
+
+    },
+    "OpenAI / Local LLM via Host" : {
+
+    },
+    "OpenAI models include: gpt-4o, gpt-3.5-turbo, etc." : {
+
+    },
+    "Organization ID (Optional)" : {
+
+    },
+    "Processing..." : {
+
+    },
+    "Professional" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Professionell"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profesional"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Professionnel"
+          }
+        }
+      }
+    },
+    "Project ID (Optional)" : {
+
+    },
+    "Prompt" : {
+
+    },
+    "Proofread" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Korrekturlesen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Proofread"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Revisión"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Relecture"
+          }
+        }
+      }
+    },
+    "Provider" : {
+
+    },
+    "Rewrite" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Umschreiben"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reescritura"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réécriture"
+          }
+        }
+      }
+    },
+    "Save" : {
+
+    },
+    "Save changes" : {
+
+    },
+    "Search models" : {
+
+    },
+    "Select Icon" : {
+
+    },
+    "Select your preferred AI service and configure its settings:" : {
+
+    },
+    "Show Response in Chat Window" : {
+
+    },
+    "Size: %@" : {
+
+    },
+    "Skip for now" : {
+
+    },
+    "Standard" : {
+
+    },
+    "Summary" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zusammenfassung"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resumen"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Résumé"
+          }
+        }
+      }
+    },
+    "Table" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tabelle"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tabla"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tableau"
+          }
+        }
+      }
+    },
+    "The latest version is already installed!" : {
+
+    },
+    "The macOS version is created by Arya Mirsepasi" : {
+
+    },
+    "Theme" : {
+
+    },
+    "Transform your writing experience with AI-powered assistance" : {
+
+    },
+    "Upload an image, PDF, or video" : {
+
+    },
+    "Uploaded: %@" : {
+
+    },
+    "Version: 3.0 (Based on Windows Port version 6.0)" : {
+
+    },
+    "Visual Theme" : {
+
+    },
+    "When enabled, responses will appear in a chat window instead of replacing the selected text." : {
+
+    },
+    "Why we need accessibility access:" : {
+
+    },
+    "Writing Tools at Your Fingertips" : {
+
+    },
+    "Writing Tools is a free & lightweight tool that helps you improve your writing with AI, similar to Apple's new Apple Intelligence feature." : {
+
+    }
+  },
+  "version" : "1.0"
+}

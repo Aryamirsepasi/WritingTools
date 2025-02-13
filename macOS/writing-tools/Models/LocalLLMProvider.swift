@@ -6,208 +6,92 @@ import SwiftUI
 
 @MainActor
 class LocalLLMProvider: ObservableObject, AIProvider {
+    // MARK: - Published Properties for UI Feedback
     @Published var isProcessing = false
-    @Published var isDownloading = false
-    @Published var downloadProgress: Double = 0
-    @Published var downloadTask: Task<ModelContainer, Error>?
     @Published var output = ""
     @Published var modelInfo = ""
     @Published var stat = ""
     @Published var lastError: String?
-    @Published var retryCount: Int = 0
     
-    var running = false
-    private var isCancelled = false
-    private let modelDirectory: URL
-    private let maxRetries = 3
-    
-    
-    // Using Llama3.2 4-bit quantized model as default for better device compatibility
-    let modelConfiguration = ModelRegistry.llama3_2_3B_4bit
-    private var modelPath = "huggingface/models/mlx-community/Llama-3.2-3B-Instruct-4bit"
+    // MARK: - Generation Settings
     let generateParameters = GenerateParameters(temperature: 0.6)
     let maxTokens = 120000
     let displayEveryNTokens = 4
     
-    enum LoadState {
-        case idle
-        case loaded(ModelContainer)
-    }
-    
-    var loadState = LoadState.idle
-    
-    init() {
-        // Get the Documents directory
-        guard let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
-            print("Could not find Documents directory")
-            modelDirectory = FileManager.default.temporaryDirectory // Fallback
-            return
-        }
+    // A flag to ensure we don’t start multiple generations concurrently.
+    var running = false
+
+    // Instead of keeping a fixed configuration, we use a manager that encapsulates
+    // the model’s configuration, download, load, and deletion logic.
+    @Published var modelManager: LocalLLMModelManager
+
+    // MARK: - Initialization
+    /// Initialize with a default model configuration (e.g. Llama 3.2 3B 4-bit).
+    /// In practice you could update this later when the user selects a different model.
+    init(configuration: ModelConfiguration = ModelRegistry.llama3_2_3B_4bit) {
+        self.modelManager = LocalLLMModelManager(configuration: configuration)
         
-        // Set the correct model directory path
-        modelDirectory = documentsPath
-            .appendingPathComponent(modelPath)
-        
-        
-        // Limit the buffer cache to 20MB
-        MLX.GPU.set(cacheLimit: 20 * 1024 * 1024)
-        
-        // Check if model already exists
-        checkModelStatus()
-    }
-    
-    private func checkModelStatus() {
-        if FileManager.default.fileExists(atPath: modelDirectory.path) {
-            let modelFiles = try? FileManager.default.contentsOfDirectory(atPath: modelDirectory.path)
-            if modelFiles?.isEmpty == false {
-                loadState = .idle // Will load on demand
-                modelInfo = "Model available"
-            } else {
-                loadState = .idle
-                modelInfo = "Model needs to be downloaded"
-            }
-        } else {
-            loadState = .idle
-            modelInfo = "Model needs to be downloaded"
-        }
-    }
-    
-    func startDownload() {
-        guard downloadTask == nil else { return }
-        isCancelled = false
-        retryCount = 0
-        
-        downloadTask = Task {
-            return try await load()
-        }
-    }
-    
-    func cancelDownload() {
-        isCancelled = true
-        downloadTask?.cancel()
-        downloadTask = nil
-        isDownloading = false
-        downloadProgress = 0
-        modelInfo = "Download cancelled"
-        lastError = nil
-    }
-    
-    func retryDownload() {
-        guard retryCount < maxRetries else {
-            lastError = "Maximum retry attempts reached"
-            return
-        }
-        retryCount += 1
-        startDownload()
-    }
-    
-    func deleteModel() throws {
-        // First ensure we're not currently downloading or using the model
-        guard !isDownloading && !running else {
-            throw NSError(domain: "LocalLLM",
-                          code: -1,
-                          userInfo: [NSLocalizedDescriptionKey: "Cannot delete while model is in use"])
-        }
-        
-        // Get the Documents directory
-        guard let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
-            throw NSError(domain: "LocalLLM",
-                          code: -1,
-                          userInfo: [NSLocalizedDescriptionKey: "Could not find Documents directory"])
-        }
-        
-        // Construct the path to the model
-        let modelPath = documentsPath
-            .appendingPathComponent(self.modelPath)
-        
-        do {
-            // Check if directory exists
-            var isDirectory: ObjCBool = false
-            let exists = FileManager.default.fileExists(atPath: modelPath.path, isDirectory: &isDirectory)
-            
-            guard exists && isDirectory.boolValue else {
-                throw NSError(domain: "LocalLLM",
-                              code: -1,
-                              userInfo: [NSLocalizedDescriptionKey: "Model directory not found"])
-            }
-            
-            // Delete the directory
-            try FileManager.default.removeItem(at: modelPath)
-            
-            // Reset state
-            loadState = .idle
-            modelInfo = "Model deleted"
-            lastError = nil
-            
-            print("Model directory deleted: \(modelPath.path)")
-        } catch {
-            print("Failed to delete model: \(error)")
-            throw error
-        }
-    }
-    
-    func load() async throws -> ModelContainer {
-        guard !isCancelled else {
-            throw CancellationError()
-        }
-        
-        switch loadState {
+        // Set an initial model information message.
+        switch modelManager.loadState {
         case .idle:
-            isDownloading = true
-            downloadProgress = 0
-            lastError = nil
-            
-            do {
-                let modelContainer = try await LLMModelFactory.shared.loadContainer(
-                    configuration: modelConfiguration
-                ) { [weak self] progress in
-                    Task { @MainActor [weak self] in
-                        guard let self = self, !self.isCancelled else { return }
-                        self.downloadProgress = progress.fractionCompleted
-                        self.modelInfo = "Downloading \(self.modelConfiguration.name): \(Int(progress.fractionCompleted * 100))%"
-                    }
-                }
-                
-                let numParams = await modelContainer.perform { context in
-                    context.model.numParameters()
-                }
-                
-                isDownloading = false
-                downloadProgress = 1.0
-                modelInfo = "Loaded \(modelConfiguration.id). Weights: \(numParams / (1024*1024))M"
-                loadState = .loaded(modelContainer)
-                downloadTask = nil
-                
-                return modelContainer
-                
-            } catch let error as NSError {
-                isDownloading = false
-                downloadProgress = 0
-                
-                if error.domain == NSURLErrorDomain {
-                    lastError = "Network error: \(error.localizedDescription)"
-                } else {
-                    lastError = "Error: \(error.localizedDescription)"
-                }
-                
-                modelInfo = lastError ?? "Unknown error occurred"
-                downloadTask = nil
-                throw error
-            }
-            
-        case .loaded(let modelContainer):
-            return modelContainer
+            self.modelInfo = "Model needs to be downloaded"
+        case .downloaded:
+            self.modelInfo = "Model downloaded and ready to load"
+        case .loaded:
+            self.modelInfo = "Model loaded"
         }
     }
     
-    // MARK: - Updated processText with OCR support
+    // MARK: - Delegated Download / Load / Delete Operations
+    
+    /// Starts the download for the currently selected model.
+    func startDownload() {
+        modelManager.startDownload()
+    }
+    
+    /// Cancels an in-progress download.
+    func cancelDownload() {
+        modelManager.cancelDownload()
+    }
+    
+    /// Retries the download if it previously failed.
+    func retryDownload() {
+        modelManager.retryDownload()
+    }
+    
+    /// Deletes the downloaded model.
+    func deleteModel() throws {
+        try modelManager.deleteModel()
+    }
+    
+    /// Asynchronously loads the model.
+    /// If the model is already loaded, it returns the container immediately.
+    /// If the model has been downloaded but not “activated”, this calls the manager’s loadModel()
+    /// to complete the loading process.
+    func load() async throws -> ModelContainer {
+        switch modelManager.loadState {
+        case .loaded(let container):
+            return container
+        case .downloaded:
+            try await modelManager.loadModel()
+            if case .loaded(let container) = modelManager.loadState {
+                return container
+            }
+        case .idle:
+            break
+        }
+        throw NSError(domain: "LocalLLM", code: -1, userInfo: [NSLocalizedDescriptionKey: "Model not available"])
+    }
+    
+    // MARK: - Processing Text (Generation)
     func processText(systemPrompt: String? = "You are a helpful writing assistant.",
                      userPrompt: String,
                      images: [Data],
                      videos: [Data]? = nil,
                      streaming: Bool = false) async throws -> String {
         guard !running else {
-            throw NSError(domain: "LocalLLM", code: -1, userInfo: [NSLocalizedDescriptionKey: "Generation already in progress"])
+            throw NSError(domain: "LocalLLM", code: -1,
+                          userInfo: [NSLocalizedDescriptionKey: "Generation already in progress"])
         }
         
         running = true
@@ -221,7 +105,7 @@ class LocalLLMProvider: ObservableObject, AIProvider {
             }
         }
         
-        // Run OCR on attached images
+        // Run OCR on attached images.
         var ocrExtractedText = ""
         for imageData in images {
             do {
@@ -250,12 +134,10 @@ class LocalLLMProvider: ObservableObject, AIProvider {
             ) { [weak self] tokens in
                 let text = context.tokenizer.decode(tokens: tokens)
                 if streaming {
-                    // Update continuously
                     Task { @MainActor [weak self] in
                         self?.output = text
                     }
                 } else {
-                    // Accumulate without intermediate updates
                     accumulatedText = text
                 }
                 if tokens.count >= (self?.maxTokens ?? 120000) {
@@ -277,7 +159,7 @@ class LocalLLMProvider: ObservableObject, AIProvider {
         return result.output
     }
     
-    
+    // MARK: - Cancel Ongoing Generation
     func cancel() {
         Task { @MainActor in
             running = false
