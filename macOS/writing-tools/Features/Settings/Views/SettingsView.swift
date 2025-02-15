@@ -9,7 +9,7 @@ struct SettingsView: View {
     @State private var selectedProvider = UserDefaults.standard.string(forKey: "current_provider") ?? "gemini"
 
     @State private var geminiApiKey = UserDefaults.standard.string(forKey: "gemini_api_key") ?? ""
-    @State private var selectedGeminiModel = GeminiModel(rawValue: UserDefaults.standard.string(forKey: "gemini_model") ?? "gemini-1.5-flash-latest") ?? .oneflash
+    @State private var selectedGeminiModel = GeminiModel(rawValue: UserDefaults.standard.string(forKey: "gemini_model") ?? "gemini-2.0-flash") ?? .twoflash
 
     @State private var openAIApiKey = UserDefaults.standard.string(forKey: "openai_api_key") ?? ""
     @State private var openAIBaseURL = UserDefaults.standard.string(forKey: "openai_base_url") ?? OpenAIConfig.defaultBaseURL

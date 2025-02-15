@@ -28,6 +28,9 @@
     "Add Local AI Models" : {
 
     },
+    "Add New Tool" : {
+
+    },
     "AI Provider" : {
 
     },
@@ -126,6 +129,9 @@
     "Describe your change..." : {
 
     },
+    "Done" : {
+
+    },
     "Download" : {
 
     },
@@ -133,6 +139,9 @@
 
     },
     "Edit Command" : {
+
+    },
+    "Edit Tool" : {
 
     },
     "Email: developer@aryamirsepasi.com" : {
@@ -209,6 +218,9 @@
     "Icon" : {
 
     },
+    "Icon:" : {
+
+    },
     "Key Points" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -263,6 +275,9 @@
 
     },
     "New Command" : {
+
+    },
+    "New Tool" : {
 
     },
     "Next" : {
@@ -359,6 +374,9 @@
     "Provider" : {
 
     },
+    "Reset" : {
+
+    },
     "Rewrite" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -398,6 +416,9 @@
 
     },
     "Show Response in Chat Window" : {
+
+    },
+    "Show Response in Window" : {
 
     },
     "Size: %@" : {
@@ -462,6 +483,9 @@
 
     },
     "Theme" : {
+
+    },
+    "Tool Details" : {
 
     },
     "Transform your writing experience with AI-powered assistance" : {

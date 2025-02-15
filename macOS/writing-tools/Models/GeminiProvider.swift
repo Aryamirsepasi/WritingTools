@@ -6,19 +6,27 @@ struct GeminiConfig: Codable {
 }
 
 enum GeminiModel: String, CaseIterable {
-    case oneflash = "gemini-1.5-flash-latest"
-    case onepro = "gemini-1.5-pro-latest"
-    case twoflash = "gemini-2.0-flash-exp"
+    
+    case twoflashlite = "gemini-2.0-flash-lite-preview-02-05"
+    case twoflash = "gemini-2.0-flash"
+    case twoflashthinking = "gemini-2.0-flash-thinking-exp-01-21"
+    case twopro = "gemini-2.0-pro-exp-02-05"
+    
     
     var displayName: String {
         switch self {
-        case .oneflash: return "Gemini 1.5 Flash (fast & more intelligent)"
-        case .onepro: return "Gemini 1.5 Pro (very intelligent, but slower & lower rate limit)"
-        case .twoflash: return "Gemini 2.0 Flash (extremely intelligent & fast, recommended)"
+        case .twoflash: return "Gemini 2.0 Flash (very intelligent | fast | 15 uses/min)"
+            
+        case .twoflashlite: return "Gemini 2.0 Flash Lite (intelligent | very fast | 30 uses/min)"
+            
+        case .twoflashthinking: return "Gemini 2.0 Flash Thinking (most intelligent | slow | 10 uses/min)"
+            
+        case .twopro: return "Gemini 2.0 Pro (most intelligent | slow | 2 uses/min)"
+            
         }
     }
+    
 }
-
 @MainActor
 class GeminiProvider: ObservableObject, AIProvider {
     @Published var isProcessing = false
@@ -131,3 +139,5 @@ class GeminiProvider: ObservableObject, AIProvider {
         isProcessing = false
     }
 }
+
+

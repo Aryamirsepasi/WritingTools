@@ -6,7 +6,7 @@ struct CustomCommandsView: View {
     @State private var isAddingNew = false
     @State private var selectedCommand: CustomCommand?
     @State private var editingCommand: CustomCommand?
-
+    
     var body: some View {
         VStack(spacing: 0) {
             HStack {
@@ -21,7 +21,7 @@ struct CustomCommandsView: View {
                 .buttonStyle(.plain)
             }
             .padding()
-
+            
             List {
                 ForEach(commandsManager.commands) { command in
                     CustomCommandRow(
@@ -31,9 +31,9 @@ struct CustomCommandsView: View {
                     )
                 }
             }
-
+            
             Divider()
-
+            
             HStack {
                 Button(action: { isAddingNew = true }) {
                     Label("Add Custom Command", systemImage: "plus.circle.fill")
@@ -41,24 +41,24 @@ struct CustomCommandsView: View {
                 }
                 .controlSize(.large)
                 .padding()
-
+                
                 Spacer()
             }
         }
         .frame(width: 500, height: 400)
         .background(Color(.windowBackgroundColor))
         .sheet(isPresented: $isAddingNew) {
-            CustomCommandEditor(
-                commandsManager: commandsManager,
-                isPresented: $isAddingNew
-            )
+            CommandEditorView(toolItem: nil) { newCommand in
+                commandsManager.addCommand(newCommand)
+                isAddingNew = false
+            }
         }
         .sheet(item: $editingCommand) { command in
-            CustomCommandEditor(
-                commandsManager: commandsManager,
-                isPresented: .constant(true),
-                editingCommand: command
-            )
+            // Wrap the CustomCommand into a ToolItem to conform with the editor’s initializer.
+            CommandEditorView(toolItem: ToolItem.from(customCommand: command)) { updatedCommand in
+                commandsManager.updateCommand(updatedCommand)
+                editingCommand = nil
+            }
         }
     }
 }
@@ -67,13 +67,13 @@ struct CustomCommandRow: View {
     let command: CustomCommand
     var onEdit: (CustomCommand) -> Void
     var onDelete: (CustomCommand) -> Void
-
+    
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: command.icon)
                 .font(.title2)
                 .frame(width: 30)
-
+            
             VStack(alignment: .leading, spacing: 4) {
                 Text(command.name)
                     .font(.headline)
@@ -83,14 +83,14 @@ struct CustomCommandRow: View {
                     .lineLimit(2)
             }
             Spacer()
-
+            
             Button(action: { onEdit(command) }) {
                 Image(systemName: "pencil")
                     .font(.title2)
             }
             .buttonStyle(.plain)
             .padding(.horizontal, 4)
-
+            
             Button(action: { onDelete(command) }) {
                 Image(systemName: "trash")
                     .font(.title2)
@@ -103,39 +103,46 @@ struct CustomCommandRow: View {
     }
 }
 
-struct CustomCommandEditor: View {
-    @ObservedObject var commandsManager: CustomCommandsManager
-    @Binding var isPresented: Bool
+struct CommandEditorView: View {
     @Environment(\.dismiss) var dismiss
-
-    var editingCommand: CustomCommand?
-
+    var toolItem: ToolItem?
+    var onSave: (CustomCommand) -> Void
+    
     @State private var name: String = ""
     @State private var prompt: String = ""
     @State private var selectedIcon: String = "star.fill"
     @State private var useResponseWindow: Bool = false
     @State private var showingIconPicker = false
-
-    init(commandsManager: CustomCommandsManager, isPresented: Binding<Bool>, editingCommand: CustomCommand? = nil) {
-        self.commandsManager = commandsManager
-        self._isPresented = isPresented
-        self.editingCommand = editingCommand
-
-        if let command = editingCommand {
-            _name = State(initialValue: command.name)
-            _prompt = State(initialValue: command.prompt)
-            _selectedIcon = State(initialValue: command.icon)
-            _useResponseWindow = State(initialValue: command.useResponseWindow)
+    
+    init(toolItem: ToolItem?, onSave: @escaping (CustomCommand) -> Void) {
+        self.toolItem = toolItem
+        self.onSave = onSave
+        if let tool = toolItem {
+            if tool.type == .predefined {
+                _name = State(initialValue: tool.writingOptionRaw ?? "")
+                if let option = WritingOption.allCases.first(where: { $0.rawValue == tool.writingOptionRaw }) {
+                    _prompt = State(initialValue: option.systemPrompt)
+                }
+            } else {
+                let command = tool.customCommand
+                _name = State(initialValue: command?.name ?? "")
+                _prompt = State(initialValue: command?.prompt ?? "")
+                _selectedIcon = State(initialValue: command?.icon ?? "star.fill")
+                _useResponseWindow = State(initialValue: command?.useResponseWindow ?? false)
+            }
         }
     }
-
+    
     var body: some View {
         VStack(spacing: 0) {
+            // Header
             HStack {
-                Text(editingCommand != nil ? "Edit Command" : "New Command")
+                Text(toolItem == nil ? "New Command" : "Edit Command")
                     .font(.headline)
                 Spacer()
-                Button(action: { dismiss() }) {
+                Button {
+                    dismiss()
+                } label: {
                     Image(systemName: "xmark.circle.fill")
                         .font(.title2)
                         .foregroundColor(.secondary)
@@ -143,7 +150,8 @@ struct CustomCommandEditor: View {
                 .buttonStyle(.plain)
             }
             .padding()
-
+            
+            // Form content
             ScrollView {
                 VStack(spacing: 20) {
                     HStack(alignment: .top, spacing: 16) {
@@ -153,11 +161,12 @@ struct CustomCommandEditor: View {
                             TextField("Command Name", text: $name)
                                 .textFieldStyle(.roundedBorder)
                         }
-
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Icon")
                                 .font(.headline)
-                            Button(action: { showingIconPicker = true }) {
+                            Button {
+                                showingIconPicker = true
+                            } label: {
                                 HStack {
                                     Image(systemName: selectedIcon)
                                         .font(.title2)
@@ -172,13 +181,11 @@ struct CustomCommandEditor: View {
                             .buttonStyle(.plain)
                         }
                     }
-
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Prompt")
                             .font(.headline)
                         TextEditor(text: $prompt)
                             .frame(height: 150)
-                            .font(.body)
                             .padding(4)
                             .background(Color(.textBackgroundColor))
                             .cornerRadius(6)
@@ -187,10 +194,8 @@ struct CustomCommandEditor: View {
                                     .stroke(Color.gray.opacity(0.2), lineWidth: 1)
                             )
                     }
-
                     Toggle("Show Response in Chat Window", isOn: $useResponseWindow)
                         .padding(.horizontal)
-
                     Text("When enabled, responses will appear in a chat window instead of replacing the selected text.")
                         .font(.caption)
                         .foregroundColor(.secondary)
@@ -198,35 +203,30 @@ struct CustomCommandEditor: View {
                 }
                 .padding()
             }
-
+            
             Divider()
-
+            
+            // Footer with Cancel and Save buttons
             HStack {
                 Button("Cancel") {
                     dismiss()
                 }
                 .keyboardShortcut(.escape, modifiers: [])
-
+                
                 Spacer()
-
+                
                 Button("Save") {
                     let command = CustomCommand(
-                        id: editingCommand?.id ?? UUID(),
+                        id: toolItem?.customCommand?.id ?? UUID(),
                         name: name,
                         prompt: prompt,
                         icon: selectedIcon,
                         useResponseWindow: useResponseWindow
                     )
-
-                    if editingCommand != nil {
-                        commandsManager.updateCommand(command)
-                    } else {
-                        commandsManager.addCommand(command)
-                    }
-
+                    onSave(command)
                     dismiss()
                 }
-                .keyboardShortcut(.return, modifiers: [.command])
+                .keyboardShortcut(.defaultAction)
                 .disabled(name.isEmpty || prompt.isEmpty)
                 .padding()
             }
