@@ -2,6 +2,8 @@
 .DS_Store
 .AppleDouble
 .LSOverride
+.cursor
+.vscode
 
 # Build and Derived Data
 build/

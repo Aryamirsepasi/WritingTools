@@ -1,8 +1,8 @@
 import SwiftUI
 import UniformTypeIdentifiers
+import Combine
 
-/// The popup view that appears when the user invokes a keyboard shortcut. In normal mode it shows a text field and a grid of tool buttons,
-/// and in edit mode it allows the user to reorder, edit, or delete any tool and add new ones.
+/// The popup view that appears when the user invokes a keyboard shortcut.
 struct PopupView: View {
     @ObservedObject var appState: AppState
     @Environment(\.colorScheme) var colorScheme
@@ -12,83 +12,66 @@ struct PopupView: View {
     @State private var customText: String = ""
     @State private var loadingOptions: Set<String> = []
     @State private var isCustomLoading: Bool = false
-    
-    // New state for managing tool ordering and edit mode.
+
     @State private var isEditMode: Bool = false
     @State private var toolItems: [ToolItem] = []
     @State private var showingToolEditor: ToolItem? = nil
     @State private var isAddingNewTool: Bool = false
-    
+    @State private var customTextDebouncer = PassthroughSubject<String, Never>() // Debouncer
+    @State private var cancellables = Set<AnyCancellable>() // For subscriptions
+
     var body: some View {
         VStack(spacing: 16) {
-            // Top bar: In normal mode, display a close button on the left and an edit (pencil) button on the right.
-            // In edit mode, display a Reset button on the left and a Done button on the right.
+            // Top bar
             HStack {
                 if isEditMode {
-                    Button("Reset") {
-                        toolItems = loadDefaultToolItems()
-                    }
-                    .buttonStyle(.plain)
+                    Button("Reset") { toolItems = loadDefaultToolItems() }.buttonStyle(.plain)
                 } else {
                     Button(action: closeAction) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.title2)
-                            .foregroundColor(.secondary)
+                        Image(systemName: "xmark.circle.fill").font(.title2).foregroundColor(.secondary)
                     }
-                    .buttonStyle(.plain)
-                    .padding(.leading, 8)
+                    .buttonStyle(.plain).padding(.leading, 8)
                 }
-                
                 Spacer()
-                
                 if isEditMode {
-                    Button("Done") {
-                        saveToolItems()
-                        isEditMode = false
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.trailing, 8)
+                    Button("Done") { saveToolItems(); isEditMode = false }.buttonStyle(.plain).padding(.trailing, 8)
                 } else {
                     Button(action: { isEditMode = true }) {
-                        Image(systemName: "pencil.circle.fill")
-                            .font(.title2)
-                            .foregroundColor(.secondary)
+                        Image(systemName: "pencil.circle.fill").font(.title2).foregroundColor(.secondary)
                     }
-                    .buttonStyle(.plain)
-                    .padding(.trailing, 8)
+                    .buttonStyle(.plain).padding(.trailing, 8)
                 }
             }
             .padding(.top, 8)
-            
+
             // Text field for custom instructions.
             HStack(spacing: 8) {
                 TextField(appState.selectedText.isEmpty ? "Describe your change..." : "Describe your change...", text: $customText)
                     .textFieldStyle(.plain)
-                    .appleStyleTextField(text: customText, isLoading: isCustomLoading, onSubmit: processCustomInstruction)
+                    .appleStyleTextField(text: customText, isLoading: isCustomLoading, onSubmit: {}) // onSubmit removed
             }
             .padding(.horizontal)
-            
+            .onReceive(customTextDebouncer.debounce(for: .milliseconds(500), scheduler: RunLoop.main)) { text in
+                if !text.isEmpty {
+                    processCustomInstruction()
+                }
+            }
+
             // Only show the tools grid if there is some selected text or selected images.
             if !appState.selectedText.isEmpty || !appState.selectedImages.isEmpty {
                 ScrollView {
                     LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
                         ForEach(toolItems) { item in
                             ToolItemView(item: item, isEditMode: isEditMode,
-                                         onSelect: {
-                                handleToolSelection(item)
-                            },
+                                         onSelect: { handleToolSelection(item) },
                                          onDelete: {
-                                if let index = toolItems.firstIndex(of: item) {
-                                    toolItems.remove(at: index)
-                                    saveToolItems()
-                                }
-                            },
-                                         onEdit: {
-                                showingToolEditor = item
-                            })
-                            .onDrag {
-                                return NSItemProvider(object: item.id as NSString)
-                            }
+                                             if let index = toolItems.firstIndex(of: item) {
+                                                 toolItems.remove(at: index)
+                                                 saveToolItems()
+                                             }
+                                         },
+                                         onEdit: { showingToolEditor = item })
+                            .onDrag { NSItemProvider(object: item.id as NSString) }
                             .onDrop(of: [UTType.text], delegate: ToolDropDelegate(item: item, items: $toolItems))
                         }
                     }
@@ -96,38 +79,44 @@ struct PopupView: View {
                 }
                 .padding(.horizontal, 8)
             }
-            
-            // In edit mode, show an "Add New Tool" button at the bottom.
+
+            // In edit mode, show an "Add New Tool" button.
             if isEditMode {
-                Button("Add New Tool") {
-                    isAddingNewTool = true
-                }
-                .buttonStyle(.borderedProminent)
-                .padding()
+                Button("Add New Tool") { isAddingNewTool = true }.buttonStyle(.borderedProminent).padding()
             }
         }
         .padding(.bottom, 8)
         .modifier(PopupBackgroundModifier(useGradientTheme: useGradientTheme))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(Color.gray.opacity(0.2), lineWidth: 1)
-        )
+        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.gray.opacity(0.2), lineWidth: 1))
         .onAppear {
-            // Load the persistent layout (or the default if none exists).
             if toolItems.isEmpty {
                 toolItems = loadToolItems()
             }
+            // Setup debouncer
+            customTextDebouncer
+                .debounce(for: .milliseconds(500), scheduler: DispatchQueue.main)
+                .sink { [weak self] _ in
+                    self?.processCustomInstruction()
+                }
+                .store(in: &cancellables)
+        }
+        .onChange(of: customText) { oldValue, newValue in
+            if !isCustomLoading { // Only debounce if not already loading
+                customTextDebouncer.send(newValue)
+            }
         }
         .sheet(item: $showingToolEditor) { tool in
-            CommandEditorView(toolItem: tool) { updatedCommand in
+            ToolEditorView(toolItem: tool) { updatedCommand in // Use ToolEditorView
                 if let index = toolItems.firstIndex(of: tool) {
-                    toolItems[index] = ToolItem.from(customCommand: updatedCommand)
+                    toolItems[index] = updatedCommand // Update with the complete ToolItem
                 }
+                saveToolItems() // Save after editing
             }
         }
         .sheet(isPresented: $isAddingNewTool) {
-            CommandEditorView(toolItem: nil) { newCommand in
+            CommandEditorView(toolItem: nil) { newCommand in // Use CommandEditorView
                 toolItems.append(ToolItem.from(customCommand: newCommand))
+                saveToolItems() // Save after adding
             }
         }
     }
@@ -224,49 +213,62 @@ struct PopupView: View {
     }
     
     private func processOption(_ option: WritingOption) {
-        loadingOptions.insert(option.id)
-        appState.isProcessing = true
-        
-        Task {
-            defer {
-                loadingOptions.remove(option.id)
-                appState.isProcessing = false
-            }
-            do {
-                let result = try await appState.activeProvider.processText(
-                    systemPrompt: option.systemPrompt,
-                    userPrompt: appState.selectedText,
-                    images: appState.selectedImages,
-                    videos: appState.selectedVideos,
-                    streaming: false
-                )
-                if [.summary, .keyPoints, .table].contains(option) {
-                    await MainActor.run {
-                        showResponseWindow(for: option, with: result)
-                    }
-                    closeAction()
-                } else {
+            loadingOptions.insert(option.rawValue)
+            appState.isProcessing = true
+
+            Task {
+                defer {
+                    loadingOptions.remove(option.rawValue)
+                    appState.isProcessing = false
+                }
+                do {
+                    let result = try await appState.activeProvider.processText(
+                        systemPrompt: option.systemPrompt,
+                        userPrompt: appState.selectedText,
+                        images: appState.selectedImages,
+                        videos: appState.selectedVideos,
+                        streaming: false
+                    )
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(result, forType: .string)
+                    simulatePaste()
                     closeAction()
-                    if let previousApp = appState.previousApplication {
-                        previousApp.activate()
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                            simulatePaste()
-                        }
-                    }
+                } catch {
+                    print("Error processing text: \(error.localizedDescription)")
+                    // Consider showing an error to the user here.
                 }
-            } catch {
-                print("Error processing text: \(error.localizedDescription)")
             }
         }
-    }
     
     private func processCustomInstruction() {
-        guard !customText.isEmpty else { return }
-        isCustomLoading = true
-        // Insert your custom instruction processing here.
-    }
+            guard !customText.isEmpty else { return }
+
+            isCustomLoading = true
+            appState.isProcessing = true
+
+            Task {
+                defer {
+                    isCustomLoading = false
+                    appState.isProcessing = false
+                }
+                do {
+                    let result = try await appState.activeProvider.processText(
+                        systemPrompt: "You are a helpful writing assistant.",
+                        userPrompt: customText,
+                        images: appState.selectedImages,
+                        videos: appState.selectedVideos,
+                        streaming: false
+                    )
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(result, forType: .string)
+                    simulatePaste()
+                    closeAction()
+                } catch {
+                    print("Error processing custom instruction: \(error.localizedDescription)")
+                    // Consider showing an error to the user here.
+                }
+            }
+        }
     
     private func showResponseWindow(for option: WritingOption, with result: String) {
         DispatchQueue.main.async {
